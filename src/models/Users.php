@@ -370,9 +370,15 @@ class Users
             throw new Exception(_('The id parameter is not valid!'));
         }
 
+        $Users = new Users($userid);
+
         $firstname = filter_var($params['firstname'], FILTER_SANITIZE_STRING);
         $lastname = filter_var($params['lastname'], FILTER_SANITIZE_STRING);
         $email = filter_var($params['email'], FILTER_SANITIZE_EMAIL);
+        $team = Tools::checkId((int) $params['team']);
+        if ($this->hasExperiments($userid) && $team !== (int) $Users->userData['team']) {
+            throw new Exception('You are trying to change the team of a user with existing experiments. You might want to Archive this user instead!');
+        }
 
         // check email is not already in db
         $usersEmails = $this->getAllEmails();
@@ -383,7 +389,8 @@ class Users
         }
 
         // now make sure the new email is not already used by someone
-        if (\in_array($email, $emailsArr, true)) {
+        // it's okay if it's the same email as before though
+        if (\in_array($email, $emailsArr, true) && $email !== $Users->userData['email']) {
             throw new Exception('Email is already used by non archived user!');
         }
 
@@ -410,6 +417,7 @@ class Users
             firstname = :firstname,
             lastname = :lastname,
             email = :email,
+            team = :team,
             usergroup = :usergroup,
             validated = :validated
             WHERE userid = :userid";
@@ -417,6 +425,7 @@ class Users
         $req->bindParam(':firstname', $firstname);
         $req->bindParam(':lastname', $lastname);
         $req->bindParam(':email', $email);
+        $req->bindParam(':team', $team);
         $req->bindParam(':validated', $validated);
         $req->bindParam(':usergroup', $usergroup);
         $req->bindParam(':userid', $userid, PDO::PARAM_INT);
@@ -736,6 +745,23 @@ class Users
         $Email->alertUserIsValidated($this->userData['email']);
 
         return $msg;
+    }
+
+    /**
+     * Check if a user owns experiments
+     * This is used to prevent changing the team of a user with experiments
+     *
+     * @param int userid the user to check
+     * @return bool
+     */
+    public function hasExperiments(int $userid): bool
+    {
+        $sql = "SELECT COUNT(id) FROM experiments WHERE userid = :userid";
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $req->execute();
+
+        return (bool) $req->fetchColumn();
     }
 
     /**
