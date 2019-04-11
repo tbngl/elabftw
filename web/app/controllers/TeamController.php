@@ -31,6 +31,9 @@ try {
 
     // EMAIL TEAM
     if ($Request->request->has('emailTeam')) {
+        // START DEMO BLOCK
+        throw new ImproperActionException('Disabled for demo.');
+        // END DEMO BLOCK
         if ($App->Session->get('auth') !== 1) {
             throw new IllegalActionException('Anonymous user tried to send email to team');
         }
