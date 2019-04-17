@@ -24,8 +24,8 @@
                 {% set tagsValueArr = Entity.entityData.tags|split('|') %}
                 {% set inc = 0 %}
                 {% for tag in tagsValueArr %}
-                    <span class='tag clickable'>
-                        <a class='tagUnreference' data-tagid='{{ tagsIdArr[inc] }}'>
+                    <span class='tag m-1 clickable'>
+                        <a class='tag tag-delete tagUnreference' data-tagid='{{ tagsIdArr[inc] }}'>
                             {{ tag|raw }}
                         </a>
                     </span>
@@ -33,7 +33,7 @@
                 {% endfor %}
             {% endif %}
         </span>
-        <input type='text' id='createTagInput' placeholder='{{ 'Add a tag'|trans }}' />
+        <input type='text' id='createTagInput' class='mb-2' placeholder='{{ 'Add a tag'|trans }}' />
     </div>
 
     <!--  MAIN FORM -->
