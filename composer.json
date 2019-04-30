@@ -18,10 +18,10 @@
     "guzzlehttp/guzzle": "6.3.*",
     "michelf/php-markdown": "1.8.*",
     "symfony/http-foundation": "4.2.*",
-    "twig/twig": "2.8.*",
+    "twig/twig": "2.9.*",
     "twig/extensions": "1.5.*",
     "monolog/monolog": "1.24.*",
-    "maennchen/zipstream-php": "v1.0.0-alpha.2",
+    "maennchen/zipstream-php": "^1.0.0",
     "ext-fileinfo": "*",
     "ext-json": "*",
     "league/csv": "^9.2",
@@ -30,7 +30,7 @@
   },
   "require-dev": {
     "roave/security-advisories": "dev-master",
-    "codeception/codeception": "2.5.*",
+    "codeception/codeception": "3.0.*",
     "pyrech/composer-changelogs": "1.6.*",
     "fzaninotto/faker": "^1.8"
   },
