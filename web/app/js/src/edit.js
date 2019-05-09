@@ -421,6 +421,7 @@
       pagebreak_separator: '<pagebreak>',
       toolbar1: 'undo redo | styleselect bold italic underline | alignleft aligncenter alignright alignjustify | superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap | codesample | link | save',
       removed_menuitems: 'newdocument, image',
+      paste_as_text: true,
       image_caption: true,
       content_style: '.mce-content-body {font-size:10pt;}',
       codesample_languages: [
@@ -458,22 +459,14 @@
         });
       },
       mentions: {
-        // # is for items + all experiments of the team, $ is for items + user's experiments
-        delimiter: ['#', '$'],
+        // use # for autocompletion
+        delimiter: '#',
         // get the source from json with get request
-        source: function (query, process, delimiter) {
+        source: function (query, process) {
           let url = 'app/controllers/EntityAjaxController.php?mention=1&term=' + query;
-          if (delimiter === '#') {
-            $.getJSON(url, function(data) {
-              process(data);
-            });
-          }
-          if (delimiter === '$') {
-            url += '&userFilter=1';
-            $.getJSON(url, function(data) {
-              process(data);
-            });
-          }
+          $.getJSON(url, function(data) {
+            process(data);
+          });
         }
       },
       language: $('#info').data('lang'),

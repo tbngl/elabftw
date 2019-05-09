@@ -19,6 +19,7 @@
       pagebreak_separator: '<pagebreak>',
       toolbar1: 'undo redo | styleselect bold italic underline | alignleft aligncenter alignright alignjustify | superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap | codesample | link',
       removed_menuitems: 'newdocument, image',
+      paste_as_text: true,
       image_caption: true,
       language : $('#info').data('lang')
     });
@@ -209,7 +210,13 @@
         if (checkbox) {
           bookable = 1;
         }
+        // if tinymce is hidden, it'll fail to trigger
+        // so we toggle it quickly to grab the content
+        if ($('#itemsTypesTemplate_' + id).is(':hidden')) {
+          this.showEditor(id);
+        }
         var template = tinymce.get('itemsTypesTemplate_' + id).getContent();
+        $('#itemsTypesEditor_' + id).toggle();
 
         $.post(this.controller, {
           itemsTypesUpdate: true,
@@ -230,10 +237,12 @@
           notif(json);
           if (json.res) {
             $('#itemstypes_' + id).hide();
+            $('#itemstypesOrder_' + id).hide();
           }
         });
       }
     };
+
     $('.itemsTypesEditor').hide();
     $(document).on('click', '#itemsTypesCreate', function() {
       ItemsTypes.create();
