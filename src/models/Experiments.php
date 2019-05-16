@@ -86,7 +86,7 @@ class Experiments extends AbstractEntity implements CreateInterface
         $newId = $this->Db->lastInsertId();
 
         // insert the tags from the template
-        if ($tpl !== null && $tpl !== 0) {
+        if ($tpl !== 0) {
             $Tags = new Tags($Templates);
             $Tags->copyTags($newId, true);
         }
@@ -314,10 +314,12 @@ class Experiments extends AbstractEntity implements CreateInterface
             if ($req->execute() !== true) {
                 throw new DatabaseErrorException('Error while executing SQL query.');
             }
+            $firstname = $req->fetchColumn();
+            if ($firstname === false || $firstname === null) {
+                throw new \RuntimeException('Could not find the firstname of the locker!');
+            }
             throw new ImproperActionException(
-                _('This experiment was locked by') .
-                ' ' . $req->fetchColumn() . '. ' .
-                _("You don't have the rights to unlock this.")
+                sprintf(_("This experiment was locked by %s. You don't have the rights to unlock this."), $firstname)
             );
         }
 

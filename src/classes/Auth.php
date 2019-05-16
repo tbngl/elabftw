@@ -31,7 +31,7 @@ class Auth
     private $Request;
 
     /** @var SessionInterface $Session the current session */
-    private $Session;
+    public $Session;
 
     /** @var array $userData All the user data for a user */
     private $userData = array();
@@ -64,7 +64,7 @@ class Auth
             throw new DatabaseErrorException('Error while executing SQL query.');
         }
         $res = $req->fetchColumn();
-        if ($res === false) {
+        if ($res === false || $res === null) {
             throw new ImproperActionException(_("Login failed. Either you mistyped your password or your account isn't activated yet."));
         }
         return $res;

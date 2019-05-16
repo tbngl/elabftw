@@ -80,6 +80,7 @@ li.dropdown-item:hover{ color:#29AEB9;}
 <select name='order' style='-moz-appearance:none' class='form-control select-order'>
     <option value=''>{{ 'Order by'|trans }}</option>
     <option value='cat' {{ App.Request.query.get('order') == 'cat' ? 'selected' }}>{{ 'Category'|trans }}</option>
+    <option value='id' {{ App.Request.query.get('order') == 'id' ? 'selected' }}>{{ 'Id'|trans }}</option>
     <option value='date' {{ App.Request.query.get('order') == 'date' ? 'selected' }}>{{ 'Date'|trans }}</option>
     {% if Entity.type == 'database' %}
         <option value='rating' {{ App.Request.query.get('order') == 'rating' ? 'selected' }}>{{ 'Rating'|trans }}</option>
@@ -112,7 +113,7 @@ li.dropdown-item:hover{ color:#29AEB9;}
 
 {% if count == 0 and searchType != '' %}
     {{ "Sorry. I couldn't find anything :("|trans|msg('ko', false) }}
-{% elseif count == 0 and searchType == '' and not App.Session.get('anon') %}
+{% elseif count == 0 and searchType == '' and not App.Session.get('anon') and not App.Request.query.get('offset') %}
     {{ "Welcome to eLabFTW. Use the 'Create new' button to get started!"|trans|msg('ok', false) }}
 {% else %}
     <p class='smallgray' style='display:inline'>
@@ -194,9 +195,6 @@ li.dropdown-item:hover{ color:#29AEB9;}
                     <i class='align_right fas fa-plus-circle mr-1' title='Show more'></i>
                 </div>
                 <p style='padding-left:20px; margin-bottom: 5px'>
-                    {% if searchPage %}
-                        {{ item.fullname|raw }}
-                    {% endif %}
                     <input type='checkbox' data-id='{{ item.id }}' data-type='{{ Entity.type }}' autocomplete='off' style='width:15px;vertical-align:-3px;' />
                 {% if not item.locked and (item.userid == App.Users.userData.userid or Entity.type == 'items' or App.Session.get('is_admin')) %}
                 <a href='{{ Entity.page }}.php?mode=edit&id={{ item.id }}'><i class='fas fa-pencil-alt clickable pseudo-link'></i></a>

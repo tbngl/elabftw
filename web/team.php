@@ -40,7 +40,7 @@ try {
 
     $Teams = new Teams($App->Users);
     $teamArr = $Teams->read();
-    $teamsStats = $Teams->getAllStats();
+    $teamsStats = $Teams->getStats((int) $App->Users->userData['team']);
 
     $Database = new Database($App->Users);
     // we only want the bookable type of items
@@ -50,14 +50,15 @@ try {
     $TagCloud = new TagCloud((int) $App->Users->userData['team']);
 
     $itemsArr = $Database->read();
+    $itemData = null;
 
     $selectedItem = null;
     if ($Request->query->get('item')) {
         $Scheduler->Database->setId((int) $Request->query->get('item'));
         $selectedItem = $Request->query->get('item');
-
-        $Scheduler->populate();
-        if (empty($Scheduler->itemData)) {
+        // itemData is to display the name/category of the selected item
+        $itemData = $Scheduler->Database->read();
+        if (empty($itemData)) {
             throw new ImproperActionException(_('Nothing to show with this id'));
         }
     }
@@ -70,6 +71,7 @@ try {
         'TagCloud' => $TagCloud,
         'Scheduler' => $Scheduler,
         'itemsArr' => $itemsArr,
+        'itemData' => $itemData,
         'selectedItem' => $selectedItem,
         'teamArr' => $teamArr,
         'teamsStats' => $teamsStats,

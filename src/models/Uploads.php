@@ -225,25 +225,32 @@ class Uploads implements CrudInterface
      * Create an upload from a string, from Chemdoodle or Doodle
      *
      * @param string $fileType 'mol' or 'png'
+     * @param string $realName name of the file
      * @param string $content content of the file
      * @return void
      */
-    public function createFromString(string $fileType, string $content): void
+    public function createFromString(string $fileType, string $realName, string $content): void
     {
         $this->Entity->canOrExplode('write');
 
-        if ($fileType === 'png') {
-            $realName = 'Doodle.png';
-            // get the image in binary
-            $content = str_replace(array('data:image/png;base64,', ' '), array('', '+'), $content);
-            $content = base64_decode($content);
-        } elseif ($fileType === 'mol') {
-            $realName = 'Mol-file.mol';
-        } else {
+        $allowedFileTypes = array('png', 'mol');
+        if (!\in_array($fileType, $allowedFileTypes)) {
             throw new IllegalActionException('Bad filetype!');
         }
 
-        $longName = $this->getLongName() . "." . $fileType;
+        if ($fileType === 'png') {
+            // get the image in binary
+            $content = str_replace(array('data:image/png;base64,', ' '), array('', '+'), $content);
+            $content = base64_decode($content);
+        }
+
+        // make sure the file has a name
+        if (empty($realName)) {
+            $realName = 'untitled';
+        }
+
+        $realName = $realName . '.' . $fileType;
+        $longName = $this->getLongName() . '.' . $fileType;
         $fullPath = $this->getUploadsPath() . $longName;
 
         if (!empty($content) && !file_put_contents($fullPath, $content)) {
@@ -359,7 +366,7 @@ class Uploads implements CrudInterface
     /**
      * Replace an uploaded file by another
      *
-     * @param \Symfony\Component\HttpFoundation\Request $request
+     * @param Request $request
      * @return void
      */
     public function replace(Request $request): void
@@ -374,6 +381,14 @@ class Uploads implements CrudInterface
         $this->moveFile($request->files->get('file')->getPathname(), $fullPath);
         $MakeThumbnail = new MakeThumbnail($fullPath);
         $MakeThumbnail->makeThumb(true);
+
+        $sql = "UPDATE uploads SET datetime = CURRENT_TIMESTAMP WHERE id = :id";
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':id', $request->request->get('upload_id'), PDO::PARAM_INT);
+
+        if ($req->execute() !== true) {
+            throw new DatabaseErrorException('Error while executing SQL query.');
+        }
     }
 
     /**

@@ -15,12 +15,15 @@ use Elabftw\Models\Experiments;
 use Elabftw\Models\Users;
 use Elabftw\Models\Teams;
 use Elabftw\Models\Uploads;
+use Elabftw\Traits\CsvTrait;
 
 /**
  * Create a report of usage for all users
  */
 class MakeReport extends AbstractMake
 {
+    use CsvTrait;
+
     /** @var Teams $Teams instance of Teams */
     private $Teams;
 
@@ -37,7 +40,6 @@ class MakeReport extends AbstractMake
     {
         $this->Teams = $teams;
         $this->Uploads = $uploads;
-        $this->outputContent = $this->makeCsv($this->getHeader(), $this->getRows());
     }
 
     /**
@@ -55,7 +57,7 @@ class MakeReport extends AbstractMake
      *
      * @return array
      */
-    private function getHeader(): array
+    protected function getHeader(): array
     {
         return array(
             'userid',
@@ -79,7 +81,7 @@ class MakeReport extends AbstractMake
      *
      * @return array
      */
-    private function getRows(): array
+    protected function getRows(): array
     {
         $allUsers = $this->Teams->Users->readFromQuery('');
         foreach ($allUsers as $key => $user) {

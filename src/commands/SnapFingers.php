@@ -8,37 +8,43 @@
  */
 namespace Elabftw\Commands;
 
-use Elabftw\Services\DatabaseCleaner;
+use Elabftw\Services\RevisionsCleaner;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Cleanup the database: look for orphans leftover from past bugs
+ * Make the database lighter by removing half of the revisions
+ * This is implemented because before 59efc7656 all quicksave actions would
+ * lead to a revision creation. See #623
  */
-class CleanDatabase extends Command
+class SnapFingers extends Command
 {
     // the name of the command (the part after "bin/console")
-    protected static $defaultName = 'db:clean';
+    protected static $defaultName = 'thanos:snap';
 
     protected function configure(): void
     {
          $this
             // the short description shown while running "php bin/console list"
-            ->setDescription('Clean the database from orphans')
+            ->setDescription('Remove half of the stored revisions')
 
             // the full command description shown when running the command with
             // the "--help" option
-            ->setHelp('Some bugs in the past version might have left some things behind. To allow for a smooth upgrade, it is best to run this command before updating.');
+            ->setHelp('A bug fixed in version 1.8.3 would lead to the revisions tables to grow very fast. This is a method to reduce the size of those tables.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $output->writeln(array(
-            'Database cleanup starting',
-            '=========================',
+            'Snapping fingers',
+            '================',
         ));
-        $Cleaner = new DatabaseCleaner();
+        $Cleaner = new RevisionsCleaner();
         $Cleaner->cleanup();
+        $output->writeln(array(
+            '*Snap*',
+            'Perfectly balanced. As all things should be.',
+        ));
     }
 }

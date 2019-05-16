@@ -65,13 +65,13 @@ class MakePdf extends AbstractMake
     }
 
     /**
-     * Generate pdf and output it to the browser
+     * Generate pdf and return it as string
      *
-     * @return void
+     * @return string
      */
-    public function outputToBrowser(): void
+    public function getPdf(): string
     {
-        $this->generate()->Output($this->getFileName(), 'I');
+        return $this->generate()->Output('', 'S');
     }
 
     /**
@@ -443,7 +443,7 @@ Witness' signature:<br><br>
      */
     public function getFileName(): string
     {
-        return $this->Entity->entityData['date'] . "-" .
+        return $this->Entity->entityData['date'] . " - " .
             preg_replace('/[^A-Za-z0-9 ]/', '_', $this->Entity->entityData['title']) . '.pdf';
     }
 }

@@ -42,7 +42,7 @@ class Update
     private $Sql;
 
     /** @var int REQUIRED_SCHEMA the current version of the database structure */
-    private const REQUIRED_SCHEMA = 47;
+    private const REQUIRED_SCHEMA = 48;
 
     /**
      * Constructor
@@ -72,7 +72,7 @@ class Update
         $currentSchema = (int) $this->Config->configArr['schema'];
 
         if ($currentSchema !== self::REQUIRED_SCHEMA) {
-            throw new InvalidSchemaException('Database schema is different from required schema. Please run update command: docker exec -it elabftw bin/console db:update');
+            throw new InvalidSchemaException();
         }
     }
 

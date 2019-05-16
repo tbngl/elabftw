@@ -433,7 +433,7 @@ class Users
         }
 
         // a non sysadmin cannot put someone sysadmin
-        if ($usergroup == 1 && $this->userData['is_sysadmin'] != 1) {
+        if ($usergroup == 1 && $this->Auth->Session->get('is_sysadmin') != 1) {
             throw new ImproperActionException(_('Only a sysadmin can put someone sysadmin.'));
         }
 
@@ -586,14 +586,6 @@ class Users
         $new_default_vis = null;
         if (isset($params['default_vis'])) {
             $new_default_vis = Tools::checkVisibility($params['default_vis']);
-        }
-
-        // STREAM ZIP
-        // only use cookie here because it's temporary code
-        if (isset($params['stream_zip']) && $params['stream_zip'] === 'on') {
-            \setcookie('stream_zip', '1', time() + 2592000, '/', '', true, true);
-        } else {
-            \setcookie('stream_zip', '0', time() - 3600, '/', '', true, true);
         }
 
         // Signature pdf

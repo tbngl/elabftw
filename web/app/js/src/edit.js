@@ -36,6 +36,7 @@
           $('#filesdiv').load('?mode=edit&id=' + $('#info').data('id') + ' #filesdiv', function() {
             // make the comment zone editable (fix issue #54)
             makeEditableFileComment();
+            displayMolFiles(); // eslint-disable-line no-undef
           });
         }
       });
@@ -95,6 +96,13 @@
 
     // END DATA RECOVERY
     ////////////////////
+
+    // Load the content of a mol file from the list in the mol editor
+    $(document).on('click', '.loadableMolLink', function() {
+      $.get($(this).data('target')).done(function(molContent) {
+        $('#sketcher_open_text').val(molContent);
+      });
+    });
 
 
     class Entity {
