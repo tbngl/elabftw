@@ -27,6 +27,9 @@ $tab = 1;
 $Response = new RedirectResponse('../../ucp.php?tab=' . $tab);
 
 try {
+    // DEMO DISABLE ALL
+    throw new ImproperActionException('This feature is disabled for the demo.');
+    // END DEMO DISABLE ALL
     // CSRF
     $App->Csrf->validate();
 
@@ -76,9 +79,6 @@ try {
     // TAB 4 : CREATE API KEY
     if ($Request->request->has('createApiKey')) {
         $tab = '4';
-        // DEMO DISABLE API KEYS
-        throw new ImproperActionException('This feature is disabled for the demo.');
-        // END DEMO DISABLE API KEYS
         $ApiKeys = new ApiKeys($App->Users);
         $key = $ApiKeys->create(
             $Request->request->get('name'),
