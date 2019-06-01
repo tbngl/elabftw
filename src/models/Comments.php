@@ -75,6 +75,73 @@ class Comments implements CrudInterface
     }
 
     /**
+     * Read comments for an entity id
+     *
+     * @return array comments for this entity
+     */
+    public function readAll(): array
+    {
+        $sql = 'SELECT ' . $this->Entity->type . "_comments.*,
+            CONCAT(users.firstname, ' ', users.lastname) AS fullname
+            FROM " . $this->Entity->type . '_comments
+            LEFT JOIN users ON (' . $this->Entity->type . '_comments.userid = users.userid)
+            WHERE item_id = :id ORDER BY ' . $this->Entity->type . '_comments.datetime ASC';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
+        if ($req->execute() !== true) {
+            throw new DatabaseErrorException('Error while executing SQL query.');
+        }
+        $res = $req->fetchAll();
+        if ($res === false) {
+            return array();
+        }
+        return $res;
+    }
+
+    /**
+     * Update a comment
+     *
+     * @param string $comment New content for the comment
+     * @param int $id id of the comment
+     * @return string
+     */
+    public function update(string $comment, int $id): string
+    {
+        $comment = $this->prepare($comment);
+
+        $sql = 'UPDATE ' . $this->Entity->type . '_comments SET
+            comment = :comment
+            WHERE id = :id AND userid = :userid';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':comment', $comment);
+        $req->bindParam(':id', $id, PDO::PARAM_INT);
+        $req->bindParam(':userid', $this->Entity->Users->userData['userid'], PDO::PARAM_INT);
+
+        if ($req->execute() !== true) {
+            throw new DatabaseErrorException('Error while executing SQL query.');
+        }
+        return $comment;
+    }
+
+    /**
+     * Destroy a comment
+     *
+     * @param int $id id of the comment
+     * @return void
+     */
+    public function destroy(int $id): void
+    {
+        $sql = 'DELETE FROM ' . $this->Entity->type . '_comments WHERE id = :id AND userid = :userid';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':id', $id, PDO::PARAM_INT);
+        $req->bindParam(':userid', $this->Entity->Users->userData['userid'], PDO::PARAM_INT);
+
+        if ($req->execute() !== true) {
+            throw new DatabaseErrorException('Error while executing SQL query.');
+        }
+    }
+
+    /**
      * Sanitize comment and check for size
      *
      * @param string $comment
@@ -132,7 +199,7 @@ class Comments implements CrudInterface
         $url = Tools::getUrl($Request) . '/' . $this->Entity->page . '.php';
         // not pretty but gets the job done
         $url = str_replace('app/controllers/', '', $url);
-        $url .= "?mode=view&id=" . $this->Entity->id;
+        $url .= '?mode=view&id=' . $this->Entity->id;
 
         $footer = "\n\n~~~\nSent from eLabFTW https://www.elabftw.net\n";
 
@@ -151,82 +218,5 @@ class Comments implements CrudInterface
         ) . $footer);
 
         return $this->Email->send($message);
-    }
-
-    /**
-     * Read comments for an entity id
-     *
-     * @return array comments for this entity
-     */
-    public function readAll(): array
-    {
-        $sql = "SELECT " . $this->Entity->type . "_comments.*,
-            CONCAT(users.firstname, ' ', users.lastname) AS fullname
-            FROM " . $this->Entity->type . "_comments
-            LEFT JOIN users ON (" . $this->Entity->type . "_comments.userid = users.userid)
-            WHERE item_id = :id ORDER BY " . $this->Entity->type . "_comments.datetime ASC";
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
-        $res = $req->fetchAll();
-        if ($res === false) {
-            return array();
-        }
-        return $res;
-    }
-
-    /**
-     * Update a comment
-     *
-     * @param string $comment New content for the comment
-     * @param int $id id of the comment
-     * @return string
-     */
-    public function update(string $comment, int $id): string
-    {
-        $comment = $this->prepare($comment);
-
-        $sql = 'UPDATE ' . $this->Entity->type . '_comments SET
-            comment = :comment
-            WHERE id = :id AND userid = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':comment', $comment);
-        $req->bindParam(':id', $id, PDO::PARAM_INT);
-        $req->bindParam(':userid', $this->Entity->Users->userData['userid'], PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
-        return $comment;
-    }
-
-    /**
-     * Destroy a comment
-     *
-     * @param int $id id of the comment
-     * @return void
-     */
-    public function destroy(int $id): void
-    {
-        $sql = 'DELETE FROM ' . $this->Entity->type . '_comments WHERE id = :id AND userid = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':id', $id, PDO::PARAM_INT);
-        $req->bindParam(':userid', $this->Entity->Users->userData['userid'], PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
-    }
-
-    /**
-     * Destroy all comments of an experiment
-     * Now handled by cascade
-     *
-     * @return void
-     */
-    public function destroyAll(): void
-    {
     }
 }

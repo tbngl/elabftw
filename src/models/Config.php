@@ -25,11 +25,11 @@ use PDO;
  */
 class Config
 {
-    /** @var Db $Db SQL Database */
-    protected $Db;
-
     /** @var array $configArr the array with all config */
     public $configArr;
+
+    /** @var Db $Db SQL Database */
+    protected $Db;
 
     /**
      * Get Db and load the configArr
@@ -55,7 +55,7 @@ class Config
     {
         $configArr = array();
 
-        $sql = "SELECT * FROM config";
+        $sql = 'SELECT * FROM config';
         $req = $this->Db->prepare($sql);
         if ($req->execute() !== true) {
             throw new DatabaseErrorException('Error while executing SQL query.');
@@ -111,7 +111,7 @@ class Config
 
         // loop the array and update config
         foreach ($post as $name => $value) {
-            $sql = "UPDATE config SET conf_value = :value WHERE conf_name = :name";
+            $sql = 'UPDATE config SET conf_value = :value WHERE conf_name = :name';
             $req = $this->Db->prepare($sql);
             $req->bindParam(':value', $value);
             $req->bindParam(':name', $name);
@@ -142,7 +142,7 @@ class Config
      */
     public function restoreDefaults(): void
     {
-        $sql = "DELETE FROM config";
+        $sql = 'DELETE FROM config';
         $req = $this->Db->prepare($sql);
         if ($req->execute() !== true) {
             throw new DatabaseErrorException('Error while executing SQL query.');
@@ -179,7 +179,7 @@ class Config
             ('stamppass', ''),
             ('stampshare', '1'),
             ('stampprovider', 'http://zeitstempel.dfn.de/'),
-            ('stampcert', 'app/dfn-cert/pki.dfn.pem'),
+            ('stampcert', 'src/dfn-cert/pki.dfn.pem'),
             ('stamphash', 'sha256'),
             ('saml_toggle', '0'),
             ('saml_debug', '0'),
@@ -206,7 +206,9 @@ class Config
             ('schema', :schema),
             ('open_science', '0'),
             ('open_team', NULL),
-            ('privacy_policy', NULL);";
+            ('privacy_policy', NULL),
+            ('announcement', NULL),
+            ('deletable_xp', 1);";
 
         $req = $this->Db->prepare($sql);
         $req->bindParam(':schema', $schema);

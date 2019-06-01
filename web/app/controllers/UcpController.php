@@ -14,6 +14,7 @@ use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\FilesystemErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Models\ApiKeys;
 use Elabftw\Models\Templates;
 use Exception;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -26,6 +27,9 @@ $tab = 1;
 $Response = new RedirectResponse('../../ucp.php?tab=' . $tab);
 
 try {
+    // CSRF
+    $App->Csrf->validate();
+
     // TAB 1 : PREFERENCES
     if ($Request->request->has('lang')) {
         $App->Users->updatePreferences($Request->request->all());
@@ -69,24 +73,33 @@ try {
         );
     }
 
+    // TAB 4 : CREATE API KEY
+    if ($Request->request->has('createApiKey')) {
+        $tab = '4';
+        // DEMO DISABLE API KEYS
+        throw new ImproperActionException('This feature is disabled for the demo.');
+        // END DEMO DISABLE API KEYS
+        $ApiKeys = new ApiKeys($App->Users);
+        $key = $ApiKeys->create(
+            $Request->request->get('name'),
+            (int) $Request->request->get('canWrite')
+        );
+        $Session->getFlashBag()->add('warning', sprintf(_("This is the only time the key will be shown! Make sure to copy it somewhere safe as you won't be able to see it again: %s"), $key));
+    }
+
     $App->Session->getFlashBag()->add('ok', _('Saved'));
     $Response = new RedirectResponse('../../ucp.php?tab=' . $tab);
-
 } catch (ImproperActionException $e) {
     // show message to user
     $App->Session->getFlashBag()->add('ko', $e->getMessage());
-
 } catch (IllegalActionException $e) {
     $App->Log->notice('', array(array('userid' => $App->Session->get('userid')), array('IllegalAction', $e->getMessage())));
     $App->Session->getFlashBag()->add('ko', Tools::error(true));
-
 } catch (DatabaseErrorException | FilesystemErrorException $e) {
     $App->Log->error('', array(array('userid' => $App->Session->get('userid')), array('Error', $e)));
-
 } catch (Exception $e) {
     $App->Log->error('', array(array('userid' => $App->Session->get('userid')), array('Exception' => $e)));
     $App->Session->getFlashBag()->add('ko', Tools::error());
-
 } finally {
     $Response->send();
 }

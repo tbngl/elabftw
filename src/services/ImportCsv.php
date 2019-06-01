@@ -11,9 +11,9 @@ declare(strict_types=1);
 namespace Elabftw\Services;
 
 use Elabftw\Elabftw\Tools;
-use Elabftw\Models\Users;
 use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Models\Users;
 use function League\Csv\delimiter_detect;
 use League\Csv\Reader;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,6 +26,9 @@ class ImportCsv extends AbstractImport
     /** @var int $inserted number of items we got into the database */
     public $inserted = 0;
 
+    /** @var string $delimiter the separation character of the csv provided by user */
+    private $delimiter;
+
     /**
      * Constructor
      *
@@ -36,43 +39,7 @@ class ImportCsv extends AbstractImport
     public function __construct(Users $users, Request $request)
     {
         parent::__construct($users, $request);
-    }
-
-    /**
-     * Generate a body from a row. Add column name in bold and content after that.
-     *
-     * @param array $row row from the csv
-     * @return string
-     */
-    private function getBodyFromRow(array $row): string
-    {
-        // get rid of the title
-        unset($row['title']);
-        // deal with the rest of the columns
-        $body = '';
-        foreach ($row as $subheader => $content) {
-            $body .= "<p><strong>" . $subheader . ":</strong> " . $content . '</p>';
-        }
-
-        return $body;
-    }
-
-    /**
-     * Make sure the delimiter character is ','
-     *
-     * @param Reader $csv
-     * @return void
-     */
-    private function checkDelimiter(Reader $csv): void
-    {
-        $delimitersCount = delimiter_detect($csv, [",", "|", "\t", ";"], -1);
-        // reverse sort the array by value to get the delimiter with highest probability
-        arsort($delimitersCount, SORT_NUMERIC);
-        // get the first element
-        $delimiter = key($delimitersCount);
-        if ($delimiter !== ',') {
-            throw new ImproperActionException("It looks like the delimiter is different from «,». Make sure to use «,» as delimiter!");
-        }
+        $this->delimiter = filter_var($request->request->get('delimiter'), FILTER_SANITIZE_STRING);
     }
 
     /**
@@ -85,11 +52,12 @@ class ImportCsv extends AbstractImport
     {
         $csv = Reader::createFromPath($this->UploadedFile->getPathname(), 'r');
         $this->checkDelimiter($csv);
+        $csv->setDelimiter($this->delimiter);
         $csv->setHeaderOffset(0);
 
         // SQL for importing
-        $sql = "INSERT INTO items(team, title, date, body, userid, category, visibility)
-            VALUES(:team, :title, :date, :body, :userid, :category, :visibility)";
+        $sql = 'INSERT INTO items(team, title, date, body, userid, category, visibility)
+            VALUES(:team, :title, :date, :body, :userid, :category, :visibility)';
         $req = $this->Db->prepare($sql);
 
         $date = Tools::kdate();
@@ -112,6 +80,43 @@ class ImportCsv extends AbstractImport
                 throw new DatabaseErrorException('Error inserting data in database!');
             }
             $this->inserted++;
+        }
+    }
+
+    /**
+     * Generate a body from a row. Add column name in bold and content after that.
+     *
+     * @param array $row row from the csv
+     * @return string
+     */
+    private function getBodyFromRow(array $row): string
+    {
+        // get rid of the title
+        unset($row['title']);
+        // deal with the rest of the columns
+        $body = '';
+        foreach ($row as $subheader => $content) {
+            $body .= '<p><strong>' . $subheader . ':</strong> ' . $content . '</p>';
+        }
+
+        return $body;
+    }
+
+    /**
+     * Make sure the delimiter character is what is intended
+     *
+     * @param Reader $csv
+     * @return void
+     */
+    private function checkDelimiter(Reader $csv): void
+    {
+        $delimitersCount = delimiter_detect($csv, array(',', '|', "\t", ';'), -1);
+        // reverse sort the array by value to get the delimiter with highest probability
+        arsort($delimitersCount, SORT_NUMERIC);
+        // get the first element
+        $delimiter = key($delimitersCount);
+        if ($delimiter !== $this->delimiter) {
+            throw new ImproperActionException(sprintf('It looks like the delimiter is different from «%1$s». Make sure to use «%1$s» as delimiter!', $this->delimiter));
         }
     }
 }

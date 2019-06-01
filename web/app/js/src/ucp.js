@@ -25,7 +25,7 @@
           $.post(this.controller, {
             destroy: true,
             id: id,
-            type: 'experiments_tpl'
+            type: 'experiments_templates'
           }).done(function(json) {
             notif(json);
             if (json.res) {
@@ -91,6 +91,17 @@
         }
       },
       language : $('#language').data('lang')
+    });
+
+    // DESTROY API KEY
+    $(document).on('click', '.keyDestroy', function() {
+      $.post('app/controllers/AjaxController.php', {
+        destroyApiKey: true,
+        id: $(this).data('id')
+      }).done(function(json) {
+        notif(json);
+        $('#apiTable').load('ucp.php #apiTable');
+      });
     });
   });
 }());

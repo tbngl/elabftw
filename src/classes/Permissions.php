@@ -10,8 +10,8 @@ declare(strict_types=1);
 
 namespace Elabftw\Elabftw;
 
-use Elabftw\Models\Users;
 use Elabftw\Models\TeamGroups;
+use Elabftw\Models\Users;
 
 /**
  * Determine read and write access for a user and an entity
@@ -38,7 +38,7 @@ class Permissions
     }
 
     /**
-     * Get permissions for a template
+     * Get permissions for a database item
      *
      * @return array
      */
@@ -118,9 +118,21 @@ class Permissions
         $Owner = new Users((int) $this->item['userid']);
         // owner allows edit and is in same team and we are not anon
         if ($Owner->userData['allow_edit'] &&
-            $this->item['team'] == $this->Users->userData['team'] &&
+            $this->item['team'] === $this->Users->userData['team'] &&
             !isset($this->Users->userData['anon'])) {
             return array('read' => true, 'write' => true);
+        }
+
+        // if group edits only are accepted
+        if ($Owner->userData['allow_group_edit']
+            && $this->item['team'] === $this->Users->userData['team']
+            && !isset($this->Users->userData['anon'])
+            // don't override the visibility setting if it's a group vis
+            && Tools::checkId((int) $this->item['visibility']) === false) {
+            $TeamGroups = new TeamGroups($this->Users);
+            if ($TeamGroups->isUserInSameGroup((int) $Owner->userData['userid'])) {
+                return array('read' => true, 'write' => true);
+            }
         }
 
         // if we don't own the experiment (and we are not admin), we need to check the visibility
