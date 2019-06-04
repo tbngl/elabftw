@@ -28,8 +28,8 @@ $Response->prepare($Request);
 
 try {
     // DEMO BLOCK
-    $message ="Thank you for trying eLabFTW. This is a demo. This is not a webservice: you need <a style='color:blue;' href='https://elabftw.readthedocs.io/en/latest/'>to install it</a> on a server or your computer.";
-    die($message);
+    $message ="Thank you for trying eLabFTW. This is a demo. This is not a webservice: you need <a style='color:blue;' href='https://doc.elabftw.net'>to install it</a> on a server!";
+    throw new ImproperActionException($message);
     // END DEMO BLOCK
     // Check if we're logged in
     if ($Session->has('auth') || $Session->has('anon')) {
