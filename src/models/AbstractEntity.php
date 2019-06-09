@@ -60,9 +60,6 @@ abstract class AbstractEntity
     /** @var string $ratingFilter inserted in sql */
     public $ratingFilter = '';
 
-    /** @var string $teamFilter inserted in sql */
-    public $teamFilter = '';
-
     /** @var string $visibilityFilter inserted in sql */
     public $visibilityFilter = '';
 
@@ -290,6 +287,7 @@ abstract class AbstractEntity
             $this->bookableFilter . ' ' .
             $this->categoryFilter . ' ' .
             $this->queryFilter . ' ' .
+            $this->ratingFilter . ' ' .
             $this->visibilityFilter . ' ' .
             ' GROUP BY id ' . ' ' .
             $this->tagFilter . ' ' .
@@ -301,19 +299,11 @@ abstract class AbstractEntity
 
         $itemsArr = $req->fetchAll();
 
-        // loop the array and only add the ones we can read
-        $finalArr = array();
-        foreach ($itemsArr as $item) {
-            $permissions = $this->getPermissions($item);
-            if ($permissions['read']) {
-                $finalArr[] = $item;
-            }
-        }
         // reduce the dimension of the array if we have only one item (idFilter set)
-        if (count($finalArr) === 1 && !empty($this->idFilter)) {
-            return $finalArr[0];
+        if (count($itemsArr) === 1 && !empty($this->idFilter)) {
+            return $itemsArr[0];
         }
-        return $finalArr;
+        return $itemsArr;
     }
 
     /**
