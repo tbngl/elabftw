@@ -157,6 +157,24 @@ hr {
     color: #dcdddc;
 }
 
+/* BLOCKQUOTE */
+blockquote {
+    background: #f9f9f9;
+    border-left: 10px solid #ccc;
+    margin: 1.5em 10px;
+    padding: 0.5em 10px;
+    quotes: "\201C""\201D""\2018""\2019";
+}
+
+blockquote::before {
+    color: #ccc;
+    content: open-quote;
+    font-size: 4em;
+    line-height: 0.1em;
+    margin-right: 0.25em;
+    vertical-align: -0.4em;
+}
+
 /* TITLES */
 h2 {
     font-weight: normal;
@@ -819,6 +837,11 @@ form#filter-order-sort select {
 .title_view {
     font-size: 160%;
     overflow-wrap: break-word;
+}
+
+.clickable.title_view:hover {
+    transition: color 0.8s ease;
+    color: #29aeb9;
 }
 
 .date {

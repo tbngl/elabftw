@@ -75,7 +75,7 @@ try {
     }
 
     // GET LINK LIST
-    if ($Request->query->has('term')) {
+    if ($Request->query->has('term') && !$Request->query->has('mention')) {
         // we don't care about the entity type as getLinkList() is available in AbstractEntity
         $Entity = new Experiments($App->Users);
         $Response->setData($Entity->getLinkList($Request->query->get('term')));
@@ -142,6 +142,19 @@ try {
         $Response->setData(array(
             'res' => true,
             'msg' => $id,
+        ));
+    }
+
+    // SHARE
+    if ($Request->request->has('getShareLink')) {
+        if (!$Entity instanceof Experiments) {
+            throw new IllegalActionException('Can only share experiments.');
+        }
+        $Entity->canOrExplode('read');
+        $link = Tools::getUrl($Request) . '/experiments.php?mode=view&id=' . $Entity->id . '&elabid=' . $Entity->entityData['elabid'];
+        $Response->setData(array(
+            'res' => true,
+            'msg' => $link,
         ));
     }
 

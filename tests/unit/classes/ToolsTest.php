@@ -26,12 +26,11 @@ class ToolsTest extends \PHPUnit\Framework\TestCase
 
     public function testFormatBytes()
     {
-        $this->assertEquals('1000 B', Tools::formatBytes(1000));
+        $this->assertEquals('0.98 KiB', Tools::formatBytes(1000));
         $this->assertEquals('1.66 KiB', Tools::formatBytes(1699));
         $this->assertEquals('5.08 MiB', Tools::formatBytes(5323423));
         $this->assertEquals('4.96 GiB', Tools::formatBytes(5323423344));
-        $this->assertEquals('21.4 TiB', Tools::formatBytes(23534909234464));
-        $this->assertEquals('That is a very big file you have there my friend.', Tools::formatBytes(99923534909234464));
+        $this->assertEquals('21.40 TiB', Tools::formatBytes(23534909234464));
     }
 
     public function testFormatDate()
@@ -82,5 +81,12 @@ class ToolsTest extends \PHPUnit\Framework\TestCase
         $langsArr = Tools::getLangsArr();
         $this->assertTrue(is_array($langsArr));
         $this->assertEquals('German', $langsArr['de_DE']);
+    }
+
+    public function testGetLimitOptions()
+    {
+        $this->assertEquals(2, Tools::getLimitOptions(2)[0]);
+        $this->assertEquals(12, Tools::getLimitOptions(12)[1]);
+        $this->assertEquals(52, Tools::getLimitOptions(52)[3]);
     }
 }

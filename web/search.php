@@ -55,12 +55,14 @@ if ($Request->query->get('type') === 'experiments') {
 }
 
 // TITLE
+$title = '';
 if ($Request->query->has('title') && !empty($Request->query->get('title'))) {
     $title = \filter_var(\trim($Request->query->get('title')), FILTER_SANITIZE_STRING);
     $Entity->titleFilter = Tools::getSearchSql($title, $andor, 'title', $Entity->type);
 }
 
 // BODY
+$body = '';
 if ($Request->query->has('body') && !empty($Request->query->get('body'))) {
     $body = \filter_var(\trim($Request->query->get('body')), FILTER_SANITIZE_STRING);
     $Entity->bodyFilter = Tools::getSearchSql($body, $andor, 'body', $Entity->type);
@@ -135,7 +137,7 @@ if ($Request->query->count() > 0) {
             $having = 'HAVING ';
             foreach ($selectedTagsArr as $tag) {
                 $tag = \filter_var($tag, FILTER_SANITIZE_STRING);
-                $having .= "tags LIKE '%$tag%' AND ";
+                $having .= " (tags LIKE '%|$tag|%' OR tags LIKE '$tag' OR tags LIKE '$tag|%' OR tags LIKE '%|$tag') AND ";
             }
             $Entity->tagFilter .= rtrim($having, ' AND');
         }
@@ -187,7 +189,12 @@ if ($Request->query->count() > 0) {
         }
 
         // READ the results
-        $itemsArr = $Entity->read();
+        $inTeam = true;
+        // look outside the team if we're filtering for organization
+        if ($vis === 'organization') {
+            $inTeam = false;
+        }
+        $itemsArr = $Entity->read(true, $inTeam);
 
         // RENDER THE SECOND PART OF THE PAGE
         // with a subpart of show.html (no create new/filter menu, and no head)
