@@ -45,13 +45,11 @@ class Uploads implements CrudInterface
     /**
      * Constructor
      *
-     * @param AbstractEntity|null $entity instance of Experiments or Database
+     * @param AbstractEntity $entity instance of Experiments or Database
      */
-    public function __construct(?AbstractEntity $entity = null)
+    public function __construct(AbstractEntity $entity)
     {
-        if ($entity !== null) {
-            $this->Entity = $entity;
-        }
+        $this->Entity = $entity;
         $this->Db = Db::getConnection();
     }
 
@@ -190,32 +188,6 @@ class Uploads implements CrudInterface
     }
 
     /**
-     * Get the total size on disk of uploaded files for a user
-     *
-     * @param int $userid
-     * @return int
-     */
-    public function getDiskUsage(int $userid): int
-    {
-        $sql = 'SELECT userid, long_name FROM uploads WHERE userid = :userid ORDER BY userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
-
-        $uploads = $req->fetchAll();
-        if ($uploads === false) {
-            return 0;
-        }
-        $diskUsage = 0;
-        foreach ($uploads as $upload) {
-            $diskUsage += \filesize($this->getUploadsPath() . $upload['long_name']);
-        }
-        return $diskUsage;
-    }
-
-    /**
      * Update the comment of a file. We also pass the itemid to make sure we update
      * the comment associated with the item sent to the controller. Because write access
      * is checked on this value.
@@ -265,7 +237,7 @@ class Uploads implements CrudInterface
 
         $sql = 'UPDATE uploads SET datetime = CURRENT_TIMESTAMP WHERE id = :id';
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':id', $request->request->get('upload_id'), PDO::PARAM_INT);
+        $req->bindValue(':id', $request->request->get('upload_id'), PDO::PARAM_INT);
 
         if ($req->execute() !== true) {
             throw new DatabaseErrorException('Error while executing SQL query.');

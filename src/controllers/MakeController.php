@@ -17,7 +17,6 @@ use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\Database;
 use Elabftw\Models\Experiments;
 use Elabftw\Models\Teams;
-use Elabftw\Models\Uploads;
 use Elabftw\Services\MakeCsv;
 use Elabftw\Services\MakePdf;
 use Elabftw\Services\MakeReport;
@@ -114,7 +113,7 @@ class MakeController implements ControllerInterface
                 'Content-Type' => 'application/pdf',
                 'Content-disposition' => 'inline; filename="' . $Make->getFileName() . '"',
                 'Cache-Control' => 'no-store',
-                'Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT',
+                'Last-Modified' => gmdate('D, d M Y H:i:s') . ' GMT',
             )
         );
     }
@@ -129,7 +128,7 @@ class MakeController implements ControllerInterface
         if (!$this->App->Session->get('is_sysadmin')) {
             throw new IllegalActionException('Non sysadmin user tried to generate report.');
         }
-        $Make = new MakeReport(new Teams($this->App->Users), new Uploads());
+        $Make = new MakeReport(new Teams($this->App->Users));
         return new Response(
             $Make->getCsv(),
             200,

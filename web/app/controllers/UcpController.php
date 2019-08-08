@@ -16,6 +16,7 @@ use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Models\ApiKeys;
 use Elabftw\Models\Templates;
+use Elabftw\Services\Filter;
 use Exception;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 
@@ -42,8 +43,23 @@ try {
     // TAB 2 : ACCOUNT
     if ($Request->request->has('currpass')) {
         $tab = '2';
+        // check that we got the good password
+        if (!$Auth->checkCredentials($App->Users->userData['email'], $Request->request->get('currpass'))) {
+            throw new ImproperActionException(_('Please input your current password!'));
+        }
         $App->Users->updateAccount($Request->request->all());
     }
+
+    // TAB 2 : CHANGE PASSWORD
+    if (!empty($Request->request->get('newpass'))) {
+        // check the confirm password
+        if ($Request->request->get('newpass') !== $Request->request->get('cnewpass')) {
+            throw new ImproperActionException(_('The passwords do not match!'));
+        }
+
+        $App->Users->updatePassword($Request->request->get('newpass'));
+    }
+
     // END TAB 2
 
     // TAB 3 : EXPERIMENTS TEMPLATES
@@ -58,10 +74,10 @@ try {
         }
 
         $tpl_name = $Request->request->filter('new_tpl_name', null, FILTER_SANITIZE_STRING);
-        $tpl_body = Tools::checkBody($Request->request->get('new_tpl_body'));
+        $tpl_body = Filter::body($Request->request->get('new_tpl_body'));
 
         $Templates = new Templates($App->Users);
-        $Templates->create($tpl_name, $tpl_body);
+        $Templates->createNew($tpl_name, $tpl_body);
     }
 
     // EDIT TEMPLATES

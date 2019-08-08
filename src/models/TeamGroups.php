@@ -11,11 +11,11 @@ declare(strict_types=1);
 namespace Elabftw\Models;
 
 use Elabftw\Elabftw\Db;
-use Elabftw\Elabftw\Tools;
 use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\CrudInterface;
+use Elabftw\Services\Check;
 use PDO;
 
 /**
@@ -49,7 +49,7 @@ class TeamGroups implements CrudInterface
     public function create(string $name): void
     {
         $name = filter_var($name, FILTER_SANITIZE_STRING);
-        if (\mb_strlen($name) < 2) {
+        if ($name === false || \mb_strlen($name) < 2) {
             throw new ImproperActionException(sprintf(_('Input is too short! (minimum: %d)'), 2));
         }
         $sql = 'INSERT INTO team_groups(name, team) VALUES(:name, :team)';
@@ -172,7 +172,7 @@ class TeamGroups implements CrudInterface
     public function update(string $name, string $id): string
     {
         $idArr = explode('_', $id);
-        if (Tools::checkId((int) $idArr[1]) === false) {
+        if (Check::id((int) $idArr[1]) === false) {
             throw new IllegalActionException('Bad id');
         }
         $sql = 'UPDATE team_groups SET name = :name WHERE id = :id AND team = :team';

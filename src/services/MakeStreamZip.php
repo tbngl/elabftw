@@ -26,7 +26,7 @@ class MakeStreamZip extends AbstractMake
     private $Zip;
 
     /** @var string $idList the input ids */
-    private $idList;
+    private $idList = '';
 
     /** @var array $idArr the input ids but in an array */
     private $idArr = array();
@@ -35,10 +35,10 @@ class MakeStreamZip extends AbstractMake
     private $trash = array();
 
     /** @var string $cleanTitle a formatted title */
-    private $cleanTitle;
+    private $cleanTitle = '';
 
     /** @var string $folder name of folder */
-    private $folder;
+    private $folder = '';
 
     /** @var array $jsonArr array that will be converted to json */
     private $jsonArr = array();
@@ -83,7 +83,7 @@ class MakeStreamZip extends AbstractMake
      */
     public function getFileName(): string
     {
-        return 'elabftw-export.zip';
+        return 'export.elabftw.zip';
     }
 
     /**
@@ -136,6 +136,9 @@ class MakeStreamZip extends AbstractMake
             $req->bindParam(':id', $id, PDO::PARAM_INT);
             $req->execute();
             $uploads = $req->fetchAll();
+            if ($uploads === false) {
+                $uploads = array();
+            }
             foreach ($uploads as $upload) {
                 // add it to the .zip
                 $this->Zip->addFileFromPath(
@@ -175,7 +178,7 @@ class MakeStreamZip extends AbstractMake
             $realName = $file['real_name'];
             // if we have a file with the same name, it shouldn't overwrite the previous one
             if (in_array($realName, $real_names_so_far, true)) {
-                $realName = $i . '_' . $realName;
+                $realName = (string) $i . '_' . $realName;
             }
             $real_names_so_far[] = $realName;
 

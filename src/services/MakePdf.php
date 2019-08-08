@@ -81,8 +81,8 @@ class MakePdf extends AbstractMake
      */
     public function getFileName(): string
     {
-        return $this->Entity->entityData['date'] . ' - ' .
-            preg_replace('/[^A-Za-z0-9 ]/', '_', $this->Entity->entityData['title']) . '.pdf';
+        $title = preg_replace('/[^A-Za-z0-9 ]/', '_', $this->Entity->entityData['title']) ?? 'file';
+        return $this->Entity->entityData['date'] . ' - ' . $title . '.pdf';
     }
 
     /**
@@ -282,7 +282,7 @@ class MakePdf extends AbstractMake
                     $html .= '<br>' . $upload['hash_algorithm'] . ' : ' . $upload['hash'];
                 }
                 // if this is an image file, add the thumbnail picture
-                $ext = filter_var(Tools::getExt($upload['real_name']), FILTER_SANITIZE_STRING);
+                $ext = Tools::getExt($upload['real_name']);
                 $filePath = \dirname(__DIR__, 2) . '/uploads/' . $upload['long_name'];
                 // if it's a TIF file, we can't add it like that to the pdf, but we can add the thumbnail
                 if (\preg_match('/(tiff|tif)$/i', $ext)) {
@@ -378,7 +378,7 @@ class MakePdf extends AbstractMake
      */
     private function buildHeader(): string
     {
-        $date = new \DateTime($this->Entity->entityData['date'] ?? Tools::kdate());
+        $date = new \DateTime($this->Entity->entityData['date'] ?? Filter::kdate());
 
         // add a CJK font for the body if we want CJK fonts
         $cjkStyle = '';

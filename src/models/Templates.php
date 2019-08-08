@@ -10,9 +10,9 @@ declare(strict_types=1);
 
 namespace Elabftw\Models;
 
-use Elabftw\Elabftw\Tools;
 use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Services\Filter;
 use Elabftw\Traits\SortableTrait;
 use PDO;
 
@@ -36,6 +36,17 @@ class Templates extends AbstractEntity
     }
 
     /**
+     * The create function from abstract class in not implemented here
+     *
+     * @param int $id
+     * @return int
+     */
+    public function create(int $id): int
+    {
+        return $id;
+    }
+
+    /**
      * Create a template
      *
      * @param string $name
@@ -44,7 +55,7 @@ class Templates extends AbstractEntity
      * @param int|null $team
      * @return void
      */
-    public function create(string $name, string $body, ?int $userid = null, ?int $team = null): void
+    public function createNew(string $name, string $body, ?int $userid = null, ?int $team = null): void
     {
         if ($team === null) {
             $team = $this->Users->userData['team'];
@@ -53,7 +64,7 @@ class Templates extends AbstractEntity
             $userid = $this->Users->userData['userid'];
         }
         $name = filter_var($name, FILTER_SANITIZE_STRING);
-        $body = Tools::checkBody($body);
+        $body = Filter::body($body);
 
         $sql = 'INSERT INTO experiments_templates(team, name, body, userid) VALUES(:team, :name, :body, :userid)';
         $req = $this->Db->prepare($sql);
@@ -82,7 +93,7 @@ class Templates extends AbstractEntity
             <h1><span style='font-size: 14pt;'>Results :<br /></span></h1>
             <p>&nbsp;</p>";
 
-        $this->create('default', $defaultBody, 0, $team);
+        $this->createNew('default', $defaultBody, 0, $team);
     }
 
     /**
@@ -232,7 +243,7 @@ class Templates extends AbstractEntity
      */
     public function updateCommon(string $body): void
     {
-        $body = Tools::checkBody($body);
+        $body = Filter::body($body);
         $sql = "UPDATE experiments_templates SET
             name = 'default',
             team = :team,
@@ -256,8 +267,8 @@ class Templates extends AbstractEntity
      */
     public function updateTpl(int $id, string $name, string $body): void
     {
-        $body = Tools::checkBody($body);
-        $name = Tools::checkTitle($name);
+        $body = Filter::body($body);
+        $name = Filter::title($name);
         $this->setId($id);
 
         $sql = 'UPDATE experiments_templates SET

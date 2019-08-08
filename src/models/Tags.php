@@ -214,6 +214,9 @@ class Tags implements CrudInterface
         // ok we have several tags that are the same in the same team
         // we want to update the reference mentionning them for the original tag id
         $tags = $req->fetchAll();
+        if ($tags === false) {
+            return 0;
+        }
         // the first tag we find is the one we keep
         $targetTagId = $tags[0]['id'];
 
@@ -328,7 +331,11 @@ class Tags implements CrudInterface
      */
     private function checkTag(string $tag): string
     {
-        $tag = \trim(str_replace(array('\\', '|'), array('', ' '), filter_var($tag, FILTER_SANITIZE_STRING)));
+        $tag = filter_var($tag, FILTER_SANITIZE_STRING);
+        if ($tag === false) {
+            throw new ImproperActionException(sprintf(_('Input is too short! (minimum: %d)'), 1));
+        }
+        $tag = \trim(str_replace(array('\\', '|'), array('', ' '), $tag));
         // empty tags are disallowed
         if ($tag === '') {
             throw new ImproperActionException(sprintf(_('Input is too short! (minimum: %d)'), 1));

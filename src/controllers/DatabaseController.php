@@ -17,6 +17,7 @@ use Elabftw\Models\Database;
 use Elabftw\Models\ItemsTypes;
 use Elabftw\Models\Revisions;
 use Elabftw\Models\TeamGroups;
+use Elabftw\Services\Check;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -142,12 +143,12 @@ class DatabaseController extends AbstractEntityController
         $getTags = false;
 
         // CATEGORY FILTER
-        if (Tools::checkId((int) $this->App->Request->query->get('cat')) !== false) {
+        if (Check::id((int) $this->App->Request->query->get('cat')) !== false) {
             $this->Entity->categoryFilter = 'AND items_types.id = ' . $this->App->Request->query->get('cat');
             $searchType = 'category';
         }
         // TAG FILTER
-        if (!empty($this->App->Request->query->get('tags'))) {
+        if (!empty($this->App->Request->query->get('tags')[0])) {
             $having = 'HAVING ';
             foreach ($this->App->Request->query->get('tags') as $tag) {
                 $tag = \filter_var($tag, FILTER_SANITIZE_STRING);
@@ -160,8 +161,10 @@ class DatabaseController extends AbstractEntityController
         // QUERY FILTER
         if (!empty($this->App->Request->query->get('q'))) {
             $query = filter_var($this->App->Request->query->get('q'), FILTER_SANITIZE_STRING);
-            $this->Entity->queryFilter = Tools::getSearchSql($query);
-            $searchType = 'query';
+            if ($query !== false) {
+                $this->Entity->queryFilter = Tools::getSearchSql($query);
+                $searchType = 'query';
+            }
         }
 
         // ORDER
@@ -201,13 +204,13 @@ class DatabaseController extends AbstractEntityController
         }
 
         // PAGINATION
-        $limit = (int) $this->App->Users->userData['limit_nb'];
-        if ($this->App->Request->query->has('limit') && Tools::checkId((int) $this->App->Request->query->get('limit')) !== false) {
-            $limit = (int) $this->App->Request->query->get('limit');
+        $limit = (int) $this->App->Users->userData['limit_nb'] ?? 15;
+        if ($this->App->Request->query->has('limit')) {
+            $limit = Check::limit((int) $this->App->Request->query->get('limit'));
         }
 
         $offset = 0;
-        if ($this->App->Request->query->has('offset') && Tools::checkId((int) $this->App->Request->query->get('offset')) !== false) {
+        if ($this->App->Request->query->has('offset') && Check::id((int) $this->App->Request->query->get('offset')) !== false) {
             $offset = (int) $this->App->Request->query->get('offset');
         }
 

@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace Elabftw\Controllers;
 
-use Elabftw\Elabftw\Tools;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\ControllerInterface;
 use Elabftw\Models\AbstractEntity;
@@ -19,6 +18,7 @@ use Elabftw\Models\Database;
 use Elabftw\Models\Experiments;
 use Elabftw\Models\Uploads;
 use Elabftw\Models\Users;
+use Elabftw\Services\Check;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -35,8 +35,14 @@ class ApiController implements ControllerInterface
     /** @var AbstractEntity $Entity instance of Entity */
     private $Entity;
 
+    /** @var Users $Users the authenticated user */
+    private $Users;
+
     /** @var array $allowedMethods allowed HTTP methods */
     private $allowedMethods = array('GET', 'POST');
+
+    /** @var bool $canWrite can we do POST methods? */
+    private $canWrite = false;
 
     /** @var int|null $id the id at the end of the url */
     private $id;
@@ -76,25 +82,9 @@ class ApiController implements ControllerInterface
             return new Response('No access token provided!', 401, array('WWW-Authenticate' => 'Bearer'));
         }
 
-        // verify the key and load user info
-        $Users = new Users();
-        $ApiKeys = new ApiKeys($Users);
-        $keyArr = $ApiKeys->readFromApiKey($this->Request->server->get('HTTP_AUTHORIZATION'));
-        $Users->setId((int) $keyArr['userid']);
-        $canWrite = (bool) $keyArr['canWrite'];
-
         // GET UPLOAD
         if ($this->endpoint === 'uploads') {
-            return $this->getUpload((int) $Users->userData['userid']);
-        }
-
-        // load Entity
-        if ($this->endpoint === 'experiments') {
-            $this->Entity = new Experiments($Users, $this->id);
-        } elseif ($this->endpoint === 'items') {
-            $this->Entity = new Database($Users, $this->id);
-        } else {
-            throw new ImproperActionException('Bad endpoint!');
+            return $this->getUpload();
         }
 
         // GET ENTITY
@@ -105,7 +95,7 @@ class ApiController implements ControllerInterface
         // POST request
 
         // POST means write access for the access token
-        if (!$canWrite) {
+        if (!$this->canWrite) {
             return new Response('Cannot use readonly key with POST method!', 403);
         }
         // FILE UPLOAD
@@ -143,18 +133,31 @@ class ApiController implements ControllerInterface
 
         // assign the id if there is one
         $id = null;
-        if (Tools::checkId((int) end($args)) !== false) {
+        if (Check::id((int) end($args)) !== false) {
             $id = (int) end($args);
         }
         $this->id = $id;
 
         // assign the endpoint (experiments, items, uploads)
-        $endpoint = array_shift($args);
-        if ($endpoint === null) {
-            throw new ImproperActionException('Could not find endpoint!');
-        }
+        $this->endpoint = array_shift($args) ?? '';
 
-        $this->endpoint = $endpoint;
+        // verify the key and load user info
+        $Users = new Users();
+        $ApiKeys = new ApiKeys($Users);
+        $keyArr = $ApiKeys->readFromApiKey($this->Request->server->get('HTTP_AUTHORIZATION'));
+        $Users->populate((int) $keyArr['userid']);
+        $this->Users = $Users;
+        $this->canWrite = (bool) $keyArr['canWrite'];
+
+        // load Entity
+        // if endpoint is uploads we don't actually care about the entity type
+        if ($this->endpoint === 'experiments' || $this->endpoint === 'uploads') {
+            $this->Entity = new Experiments($Users, $this->id);
+        } elseif ($this->endpoint === 'items') {
+            $this->Entity = new Database($Users, $this->id);
+        } else {
+            throw new ImproperActionException('Bad endpoint!');
+        }
     }
 
     /**
@@ -259,20 +262,19 @@ class ApiController implements ControllerInterface
     /**
      * Get the file corresponding to the ID
      *
-     * @param int $userid
      * @return Response
      */
-    private function getUpload(int $userid): Response
+    private function getUpload(): Response
     {
         if ($this->id === null) {
             return new Response('You need to specify an ID!', 400);
         }
-        $Uploads = new Uploads();
+        $Uploads = new Uploads(new Experiments($this->Users));
         $uploadData = $Uploads->readFromId($this->id);
         // check user owns the file
         // we could also check if user has read access to the item
         // but for now let's just restrict downloading file via API to owned files
-        if ((int) $uploadData['userid'] !== $userid) {
+        if ((int) $uploadData['userid'] !== $this->Users->userData['userid']) {
             return new Response('You do not have permission to access this resource.', 403);
         }
         $filePath = \dirname(__DIR__, 2) . '/uploads/' . $uploadData['long_name'];

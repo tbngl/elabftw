@@ -12,7 +12,6 @@ declare(strict_types=1);
 
 namespace Elabftw\Elabftw;
 
-use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\InvalidSchemaException;
 use Elabftw\Models\Config;
@@ -67,6 +66,11 @@ class Update
         return self::REQUIRED_SCHEMA;
     }
 
+    /**
+     * Check if the Db structure needs updating
+     *
+     * @return void
+     */
     public function checkSchema(): void
     {
         $currentSchema = (int) $this->Config->configArr['schema'];
@@ -119,7 +123,7 @@ class Update
 
         // new style with SQL files instead of functions
         while ($currentSchema < self::REQUIRED_SCHEMA) {
-            $this->Sql->execFile('schema' . (++$currentSchema) . '.sql');
+            $this->Sql->execFile('schema' . (string) (++$currentSchema) . '.sql');
         }
 
         // remove cached twig templates (for non docker users)
@@ -164,9 +168,7 @@ class Update
     private function schema38(): void
     {
         $sql = 'ALTER TABLE experiments_comments CHANGE exp_id item_id INT(10) UNSIGNED NOT NULL';
-        if (!$this->Db->q($sql)) {
-            throw new DatabaseErrorException('Problem updating to schema 38!');
-        }
+        $this->Db->q($sql);
         $sql = 'CREATE TABLE IF NOT EXISTS `items_comments` (
           `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
           `datetime` datetime NOT NULL,
@@ -175,9 +177,7 @@ class Update
           `userid` int(11) NOT NULL,
           PRIMARY KEY (`id`)
         );';
-        if (!$this->Db->q($sql)) {
-            throw new DatabaseErrorException('Problem updating to schema 38 (second part)!');
-        }
+        $this->Db->q($sql);
     }
 
     /**
@@ -188,9 +188,7 @@ class Update
     private function schema39(): void
     {
         $sql = 'ALTER TABLE `users` DROP `can_lock`';
-        if (!$this->Db->q($sql)) {
-            throw new DatabaseErrorException('Problem updating to schema 39!');
-        }
+        $this->Db->q($sql);
     }
 
     /**
@@ -201,9 +199,7 @@ class Update
     private function schema40(): void
     {
         $sql = "ALTER TABLE `users` ADD `allow_edit` TINYINT(1) NOT NULL DEFAULT '0'";
-        if (!$this->Db->q($sql)) {
-            throw new DatabaseErrorException('Problem updating to schema 40!');
-        }
+        $this->Db->q($sql);
     }
 
     /**
@@ -215,33 +211,38 @@ class Update
     {
         // first create the tags table
         $sql = 'CREATE TABLE IF NOT EXISTS `tags` ( `id` INT NOT NULL AUTO_INCREMENT , `team` INT NOT NULL , `tag` VARCHAR(255) NOT NULL , PRIMARY KEY (`id`))';
-        if (!$this->Db->q($sql)) {
-            throw new DatabaseErrorException('Problem creating table tags!');
-        }
 
+        $this->Db->q($sql);
         // now create the mapping table
         $sql = 'CREATE TABLE IF NOT EXISTS `tags2entity` ( `item_id` INT NOT NULL , `tag_id` INT NOT NULL , `item_type` VARCHAR(255) NOT NULL)';
-        if (!$this->Db->q($sql)) {
-            throw new DatabaseErrorException('Problem creating table tags2entity!');
-        }
+        $this->Db->q($sql);
 
         // fetch existing tags
         $sql = 'SELECT experiments_tags.*, users.team FROM experiments_tags INNER JOIN users ON (experiments_tags.userid = users.userid)';
         $req = $this->Db->prepare($sql);
         $req->execute();
         $experimentsTags = $req->fetchAll();
+        if ($experimentsTags === false) {
+            $experimentsTags = array();
+        }
 
         // same for items tags
         $sql = 'SELECT * FROM items_tags';
         $req = $this->Db->prepare($sql);
         $req->execute();
         $itemsTags = $req->fetchAll();
+        if ($itemsTags === false) {
+            $itemsTags = array();
+        }
 
         // same for experiments_tpl_tags
         $sql = 'SELECT experiments_tpl_tags.*, users.team FROM experiments_tpl_tags INNER JOIN users ON (experiments_tpl_tags.userid = users.userid)';
         $req = $this->Db->prepare($sql);
         $req->execute();
         $tplTags = $req->fetchAll();
+        if ($tplTags === false) {
+            $tplTags = array();
+        }
 
         // now the insert part
         $insertSql = 'INSERT INTO tags (team, tag) VALUES (:team, :tag)';
