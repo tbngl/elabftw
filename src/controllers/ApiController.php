@@ -12,6 +12,7 @@ namespace Elabftw\Controllers;
 
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\ControllerInterface;
+use Elabftw\Models\AbstractCategory;
 use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\ApiKeys;
 use Elabftw\Models\Database;
@@ -410,6 +411,7 @@ class ApiController implements ControllerInterface
         // check that the id we have is a valid item type from our team
         $ItemsTypes = new ItemsTypes($this->Users);
         $itemsTypesArr = $ItemsTypes->readAll();
+        $validIds = array();
         foreach ($itemsTypesArr as $itemsTypes) {
             $validIds[] = $itemsTypes['category_id'];
         }
