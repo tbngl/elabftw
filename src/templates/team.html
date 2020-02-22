@@ -1,9 +1,6 @@
 {% extends 'base.html' %}
 
 {% block body %}
-<script src='app/js/moment.bundle.js?v={{ v }}'></script>
-<script src='app/js/fullcalendar.min.js?v={{ v }}'></script>
-
 <menu>
     <ul>
         <li class='tabhandle' id='tab1'>{{ 'Scheduler'|trans }}</li>
@@ -12,6 +9,44 @@
         <li class='tabhandle' id='tab4'>{{ 'Email'|trans }}</li>
     </ul>
 </menu>
+
+<!-- Modal for event click -->
+<div class='modal fade' id='eventModal' tabindex='-1' role='dialog' aria-labelledby='eventModalLabel' aria-hidden='true'>
+  <div class='modal-dialog modal-lg' role='document'>
+    <div class='modal-content'>
+      <div class='modal-header'>
+        <h5 class='modal-title' id='eventModalLabel'>{{ 'Edit event'|trans }}</h5>
+        <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+          <span aria-hidden='true'>&times;</span>
+        </button>
+      </div>
+      <div class='modal-body' data-wait='{{ 'Please wait…' }}'>
+        <h3 id='eventTitle'></h3>
+        <div id='eventBound'></div>
+        <button id='rmBind' aria-hidden='true' class='button btn btn-danger' type='button'>{{ 'Unbind'|trans }}</button>
+        <!-- BIND EXPERIMENT -->
+        <div class='mt-2'>
+          <h5>{{ 'Bind an experiment'|trans }}</h5>
+            <div class='input-group mb-3 ui-front'>
+                <div class='input-group-prepend'>
+                    <span class='input-group-text'>{{ 'Search'|trans }}</span>
+                </div>
+                <input type='text' id='bindinput' class='form-control' />
+                <div class='input-group-append'>
+                  <button id='goBind' class='btn btn-primary' type='button'>{{ 'Attach'|trans }}</button>
+                </div>
+            </div>
+        </div>
+        <h5>{{ 'Delete this event'|trans }}</h5>
+        <button type='button' id='deleteEvent' class='button btn btn-danger'>{{ 'Delete'|trans }}</button>
+      </div>
+      <div class='modal-footer'>
+        <button type='button' class='button btn btn-secondary' data-dismiss='modal'>{{ 'Cancel'|trans }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 <!-- TAB 1 SCHEDULER -->
 <div class='divhandle' id='tab1div'>
@@ -113,7 +148,7 @@
 
 <!-- TAB 3 TEMPLATE -->
 <div class='divhandle' id='tab3div'>
-<div class='box new-tpl-box'>
+<div class='box'>
     <h3>{{ 'Experiments Templates'|trans }}</h3>
     {% if templatesArr|length > 0 %}
         <ul class='nav nav-pills' role='tablist'>
@@ -125,9 +160,9 @@
         <div class='subdivhandle box' id='subtab_{{ template.id }}div'>
 
             <h3>{{ template.name|raw }} ({{ template.fullname|raw }})
-                <button class='button importTpl' data-id='{{ template.id }}'>{{ 'Import to your profile'|trans }}</button>
+                <button class='button btn btn-primary importTpl' data-id='{{ template.id }}'>{{ 'Import to your profile'|trans }}</button>
                 <a href='experiments.php?create=true&tpl={{ template.id }}'>
-                  <button class='button'>{{ 'Create experiment from template'|trans }}</button>
+                  <button class='button btn btn-primary'>{{ 'Create experiment from template'|trans }}</button>
                 </a>
             </h3>
             <!-- TAGS -->
@@ -171,7 +206,7 @@
             <textarea form='emailTeamForm' id='emailBody' name='body' class='form-control' rows='10' required /></textarea>
         </div>
         <div class='submitButtonDiv'>
-            <button type='submit' class='button'>{{ 'Send'|trans }}</button>
+            <button type='submit' class='button btn btn-primary'>{{ 'Send'|trans }}</button>
         </div>
     </form>
 
@@ -182,10 +217,5 @@
     data-lang="{{ lang }}"
     data-item="{{ selectedItem }}"
     data-all="{{ allItems }}"></div>
-<script src='app/js/tabs.min.js?v={{ v }}'></script>
-{% if App.Config.configArr.debug %}
-  <script src='app/js/src/team.js?v={{ v }}'></script>
-{% else %}
-  <script src='app/js/team.min.js?v={{ v }}'></script>
-{% endif %}
+<script src='app/js/team.bundle.js'></script>
 {% endblock body %}

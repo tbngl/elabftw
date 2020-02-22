@@ -101,6 +101,24 @@ class Check
     }
 
     /**
+     * Check the display size user setting
+     *
+     * @param string $input
+     * @return string
+     */
+    public static function displaySize(string $input): string
+    {
+        switch ($input) {
+            case 'xs':
+                return 'xs';
+            case 'md':
+                return 'md';
+            default:
+                return 'lg';
+        }
+    }
+
+    /**
      * Check if we have a correct value for visibility
      *
      * @param string $visibility
@@ -120,5 +138,25 @@ class Check
         }
 
         return $visibility;
+    }
+
+    /**
+     * Check if we have a correct value for read/write
+     *
+     * @param string $rw
+     * @return string
+     */
+    public static function rw(string $rw): string
+    {
+        $validArr = array(
+            'read',
+            'write',
+        );
+
+        if (!\in_array($rw, $validArr, true)) {
+            throw new IllegalActionException('The read/write parameter is wrong.');
+        }
+
+        return $rw;
     }
 }

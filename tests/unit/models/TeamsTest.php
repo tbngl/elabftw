@@ -8,7 +8,7 @@ class TeamsTest extends \PHPUnit\Framework\TestCase
 {
     protected function setUp(): void
     {
-        $Users = new Users(1);
+        $Users = new Users(1, 1);
         $this->Teams= new Teams($Users);
     }
 
@@ -86,6 +86,6 @@ class TeamsTest extends \PHPUnit\Framework\TestCase
     {
         $stats = $this->Teams->getAllStats();
         $this->assertTrue(is_array($stats));
-        $this->assertEquals(2, $stats['totusers']);
+        $this->assertEquals(8, $stats['totusers']);
     }
 }

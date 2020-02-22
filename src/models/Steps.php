@@ -11,7 +11,6 @@ declare(strict_types=1);
 namespace Elabftw\Models;
 
 use Elabftw\Elabftw\Db;
-use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Interfaces\CrudInterface;
 use PDO;
 
@@ -53,10 +52,30 @@ class Steps implements CrudInterface
         $req = $this->Db->prepare($sql);
         $req->bindParam(':item_id', $this->Entity->id, PDO::PARAM_INT);
         $req->bindParam(':body', $body);
+        $this->Db->execute($req);
+    }
 
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+    /**
+     * Import a step from a complete step array
+     * Used when importing from zip archive (json)
+     *
+     * @param array $step
+     * @return void
+     */
+    public function import(array $step): void
+    {
+        $this->Entity->canOrExplode('write');
+
+        $body = str_replace('|', ' ', $step['body']);
+        $sql = 'INSERT INTO ' . $this->Entity->type . '_steps (item_id, body, ordering, finished, finished_time)
+            VALUES(:item_id, :body, :ordering, :finished, :finished_time)';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':item_id', $this->Entity->id, PDO::PARAM_INT);
+        $req->bindParam(':body', $body);
+        $req->bindParam(':ordering', $step['ordering']);
+        $req->bindParam(':finished', $step['finished']);
+        $req->bindParam(':finished_time', $step['finished_time']);
+        $this->Db->execute($req);
     }
 
     /**
@@ -74,10 +93,7 @@ class Steps implements CrudInterface
             WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $stepid, PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -90,9 +106,7 @@ class Steps implements CrudInterface
         $sql = 'SELECT * FROM ' . $this->Entity->type . '_steps WHERE item_id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
 
         $res = $req->fetchAll();
         if ($res === false) {
@@ -112,9 +126,7 @@ class Steps implements CrudInterface
         $sql = 'SELECT * FROM ' . $this->Entity->type . '_steps WHERE item_id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
 
         $res = $req->fetchAll();
         if ($res === false) {
@@ -140,14 +152,12 @@ class Steps implements CrudInterface
         $stepsql = 'SELECT body FROM ' . $table . '_steps WHERE item_id = :id';
         $stepreq = $this->Db->prepare($stepsql);
         $stepreq->bindParam(':id', $id, PDO::PARAM_INT);
-        if ($stepreq->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($stepreq);
 
         while ($steps = $stepreq->fetch()) {
             $sql = 'INSERT INTO ' . $this->Entity->type . '_steps (item_id, body) VALUES(:item_id, :body)';
             $req = $this->Db->prepare($sql);
-            $req->execute(array(
+            $this->Db->execute($req, array(
                 'item_id' => $newId,
                 'body' => $steps['body'],
             ));
@@ -167,9 +177,6 @@ class Steps implements CrudInterface
         $sql = 'DELETE FROM ' . $this->Entity->type . '_steps WHERE id= :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 }

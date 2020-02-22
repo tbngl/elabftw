@@ -39,6 +39,9 @@ class ImportCsv extends AbstractImport
     {
         parent::__construct($users, $request);
         $this->delimiter = $request->request->filter('delimiter', null, FILTER_SANITIZE_STRING);
+        if ($this->delimiter === 'tab') {
+            $this->delimiter = "\t";
+        }
     }
 
     /**
@@ -55,8 +58,8 @@ class ImportCsv extends AbstractImport
         $csv->setHeaderOffset(0);
 
         // SQL for importing
-        $sql = 'INSERT INTO items(team, title, date, body, userid, category, visibility)
-            VALUES(:team, :title, :date, :body, :userid, :category, :visibility)';
+        $sql = 'INSERT INTO items(team, title, date, body, userid, category, canread)
+            VALUES(:team, :title, :date, :body, :userid, :category, :canread)';
         $req = $this->Db->prepare($sql);
 
         $date = Filter::kdate();
@@ -74,7 +77,7 @@ class ImportCsv extends AbstractImport
             $req->bindParam(':body', $body);
             $req->bindParam(':userid', $this->Users->userData['userid']);
             $req->bindParam(':category', $this->target);
-            $req->bindParam(':visibility', $this->visibility);
+            $req->bindParam(':canread', $this->canread);
             if ($req->execute() === false) {
                 throw new DatabaseErrorException('Error inserting data in database!');
             }

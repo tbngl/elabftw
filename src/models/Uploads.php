@@ -18,8 +18,10 @@ use Elabftw\Exceptions\FilesystemErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\CrudInterface;
+use Elabftw\Services\Filter;
 use Elabftw\Services\MakeThumbnail;
 use Elabftw\Traits\UploadTrait;
+use Gmagick;
 use PDO;
 use Symfony\Component\HttpFoundation\Request;
 
@@ -72,6 +74,16 @@ class Uploads implements CrudInterface
         // Try to move the file to its final place
         $this->moveFile($request->files->get('file')->getPathname(), $fullPath);
 
+        // rotate the image if we can find the orientation in the exif data
+        // maybe php-exif extension isn't loaded
+        if (function_exists('exif_read_data')) {
+            $exifData = exif_read_data($fullPath);
+            if ($exifData !== false) {
+                $image = new Gmagick($fullPath);
+                $image->rotateimage('#000', $this->getRotationAngle($exifData));
+                $image->write($fullPath);
+            }
+        }
         // final sql
         $this->dbInsert($realName, $longName, $this->getHash($fullPath));
         $MakeThumbnail = new MakeThumbnail($fullPath);
@@ -112,7 +124,7 @@ class Uploads implements CrudInterface
     {
         $this->Entity->canOrExplode('write');
 
-        $allowedFileTypes = array('png', 'mol');
+        $allowedFileTypes = array('png', 'mol', 'json');
         if (!\in_array($fileType, $allowedFileTypes, true)) {
             throw new IllegalActionException('Bad filetype!');
         }
@@ -153,10 +165,7 @@ class Uploads implements CrudInterface
         $sql = 'SELECT * FROM uploads WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         $res = $req->fetch();
         if ($res === false) {
             throw new ImproperActionException('Nothing to show with this id');
@@ -176,9 +185,7 @@ class Uploads implements CrudInterface
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
         $req->bindParam(':type', $this->Entity->type);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
 
         $res = $req->fetchAll();
         if ($res === false) {
@@ -210,10 +217,7 @@ class Uploads implements CrudInterface
         $req->bindParam(':id', $id, PDO::PARAM_INT);
         $req->bindParam(':item_id', $this->Entity->id, PDO::PARAM_INT);
         $req->bindParam(':comment', $comment);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -238,10 +242,7 @@ class Uploads implements CrudInterface
         $sql = 'UPDATE uploads SET datetime = CURRENT_TIMESTAMP WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindValue(':id', $request->request->get('upload_id'), PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -311,10 +312,7 @@ class Uploads implements CrudInterface
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
         $req->bindParam(':type', $this->Entity->type);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -332,6 +330,28 @@ class Uploads implements CrudInterface
     }
 
     /**
+     * Get the rotation angle from exif data
+     *
+     * @param array $exifData
+     * @return int
+     */
+    private function getRotationAngle(array $exifData): int
+    {
+        switch ($exifData['Orientation']) {
+            case 1:
+                return 0;
+            case 3:
+                return 180;
+            case 6:
+                return 90;
+            case 8:
+                return -90;
+            default:
+                return 0;
+        }
+    }
+
+    /**
      * Create a clean filename
      * Remplace all non letters/numbers by '.' (this way we don't lose the file extension)
      *
@@ -340,7 +360,7 @@ class Uploads implements CrudInterface
      */
     private function getSanitizedName(string $rawName): string
     {
-        return preg_replace('/[^A-Za-z0-9]/', '.', $rawName) ?? 'file.data';
+        return Filter::forFilesystem($rawName) ?? 'file.data';
     }
 
     /**
@@ -444,9 +464,6 @@ class Uploads implements CrudInterface
         $req->bindParam(':type', $this->Entity->type);
         $req->bindParam(':hash', $hash);
         $req->bindParam(':hash_algorithm', $this->hashAlgorithm);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 }

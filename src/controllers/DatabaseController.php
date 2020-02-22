@@ -144,7 +144,7 @@ class DatabaseController extends AbstractEntityController
 
         // CATEGORY FILTER
         if (Check::id((int) $this->App->Request->query->get('cat')) !== false) {
-            $this->Entity->categoryFilter = 'AND items_types.id = ' . $this->App->Request->query->get('cat');
+            $this->Entity->addFilter('items_types.id', $this->App->Request->query->get('cat'));
             $searchType = 'category';
         }
         // TAG FILTER
@@ -186,6 +186,8 @@ class DatabaseController extends AbstractEntityController
             $this->Entity->order = 'items.' . $order;
         } elseif ($order === 'comment') {
             $this->Entity->order = 'items_comments.recent_comment';
+        } elseif ($order === 'user') {
+            $this->Entity->order = 'items.userid';
         }
 
         // SORT
@@ -206,7 +208,7 @@ class DatabaseController extends AbstractEntityController
         }
 
         // PAGINATION
-        $limit = (int) $this->App->Users->userData['limit_nb'] ?? 15;
+        $limit = (int) ($this->App->Users->userData['limit_nb'] ?? 15);
         if ($this->App->Request->query->has('limit')) {
             $limit = Check::limit((int) $this->App->Request->query->get('limit'));
         }

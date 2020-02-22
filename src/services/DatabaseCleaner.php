@@ -32,12 +32,11 @@ class DatabaseCleaner implements CleanerInterface
     /**
      * Check all the things
      *
-     * @return void
+     * @return int
      */
-    public function cleanup()
+    public function cleanup(): int
     {
         $this->findOrphans('experiments_templates', 'teams', 'team');
-        $this->findOrphans('experiments', 'teams', 'team');
         $this->findOrphans('experiments', 'users', 'userid', 'userid');
         $this->findOrphans('experiments_comments', 'experiments', 'item_id');
         $this->findOrphans('experiments_comments', 'users', 'userid', 'userid');
@@ -58,7 +57,8 @@ class DatabaseCleaner implements CleanerInterface
         $this->findOrphans('team_events', 'users', 'userid', 'userid');
         $this->findOrphans('team_groups', 'teams', 'team');
         $this->findOrphans('todolist', 'users', 'userid', 'userid');
-        $this->findOrphans('users', 'teams', 'team');
+
+        return 0;
     }
 
     /**

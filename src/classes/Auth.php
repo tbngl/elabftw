@@ -10,8 +10,12 @@ declare(strict_types=1);
 
 namespace Elabftw\Elabftw;
 
-use Elabftw\Exceptions\DatabaseErrorException;
+use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Exceptions\InvalidCredentialsException;
+use Elabftw\Models\Teams;
+use Elabftw\Models\Users;
+use Elabftw\Services\UsersHelper;
 use PDO;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
@@ -51,9 +55,9 @@ class Auth
      *
      * @param string $email
      * @param string $password
-     * @return bool True if the login + password are good
+     * @return int userid
      */
-    public function checkCredentials(string $email, string $password): bool
+    public function checkCredentials(string $email, string $password): int
     {
         $passwordHash = hash('sha512', $this->getSalt($email) . $password);
 
@@ -62,32 +66,41 @@ class Auth
         $req = $this->Db->prepare($sql);
         $req->bindParam(':email', $email);
         $req->bindParam(':passwordHash', $passwordHash);
+        $this->Db->execute($req);
 
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
+        if ($req->rowCount() !== 1) {
+            throw new InvalidCredentialsException();
         }
-        return $req->rowCount() === 1;
+
+        return (int) $req->fetchColumn();
+    }
+
+    public function loginInTeam(int $userid, int $team, string $setCookie = 'on'): void
+    {
+        $this->populateUserDataFromUserid($userid);
+        $this->populateSession($team);
+        if ($setCookie === 'on') {
+            $this->setToken($team);
+        }
     }
 
     /**
      * Login with email and password
      *
-     * @param string $email
-     * @param string $password
      * @param string $setCookie will be here if the user ticked the remember me checkbox
-     * @return bool Return true if user provided correct credentials
+     * @return mixed Return true if user provided correct credentials or an array with the userid
+     * and the teams where login is possible for display on the team selection page
      */
-    public function login(string $email, string $password, string $setCookie = 'on'): bool
+    public function login(int $userid, string $setCookie = 'on')
     {
-        if ($this->checkCredentials($email, $password)) {
-            $this->populateUserDataFromEmail($email);
-            $this->populateSession();
-            if ($setCookie === 'on') {
-                $this->setToken();
-            }
-            return true;
+        $UsersHelper = new UsersHelper();
+        $teams = $UsersHelper->getTeamsFromUserid($userid);
+        if (\count($teams) > 1) {
+            return array($userid, $teams);
         }
-        return false;
+        $this->loginInTeam($userid, (int) $teams[0]['id']);
+
+        return true;
     }
 
     /**
@@ -103,22 +116,6 @@ class Auth
 
         $this->Session->set('is_admin', 0);
         $this->Session->set('is_sysadmin', 0);
-    }
-
-    /**
-     * Login with SAML. When this is called, user is authenticated with IDP
-     *
-     * @param string $email
-     * @return bool
-     */
-    public function loginFromSaml(string $email): bool
-    {
-        if ($this->populateUserDataFromEmail($email)) {
-            $this->populateSession();
-            $this->setToken();
-            return true;
-        }
-        return false;
     }
 
     /**
@@ -167,11 +164,24 @@ class Auth
         // now try to login with the cookie
         if ($this->loginWithCookie()) {
             // successful login thanks to our cookie friend
-            $this->populateSession();
+            $team = (int) $this->Request->cookies->filter('token_team', null, FILTER_SANITIZE_STRING);
+            $this->populateSession($team);
             return true;
         }
 
         return false;
+    }
+
+    public function getUseridFromEmail(string $email): int
+    {
+        $sql = 'SELECT userid FROM users WHERE email = :email AND archived = 0 AND validated = 1';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':email', $email);
+        $this->Db->execute($req);
+        if ($req->rowCount() !== 1) {
+            return 0;
+        }
+        return (int) $req->fetchColumn();
     }
 
     /**
@@ -185,14 +195,12 @@ class Auth
         $sql = 'SELECT salt FROM users WHERE email = :email AND archived = 0';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':email', $email);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         $res = $req->fetchColumn();
         if ($res === false || $res === null) {
             throw new ImproperActionException(_("Login failed. Either you mistyped your password or your account isn't activated yet."));
         }
-        return $res;
+        return (string) $res;
     }
 
     /**
@@ -209,15 +217,20 @@ class Auth
         }
         $token = $this->Request->cookies->filter('token', null, FILTER_SANITIZE_STRING);
 
+
         // Now compare current cookie with the token from SQL
         $sql = 'SELECT * FROM users WHERE token = :token LIMIT 1';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':token', $token);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         if ($req->rowCount() === 1) {
+            // make sure user is in team
+            $team = $this->Request->cookies->filter('token_team', null, FILTER_SANITIZE_STRING);
+            $userData = $req->fetch();
+            $Teams = new Teams(new Users((int) $userData['userid']));
+            if (!$Teams->isUserInTeam((int) $userData['userid'], (int) $team)) {
+                throw new IllegalActionException('Invalid token_team!');
+            }
             $this->userData = $req->fetch();
             return true;
         }
@@ -236,9 +249,28 @@ class Auth
         $req = $this->Db->prepare($sql);
         $req->bindValue(':last_login', \date('Y-m-d H:i:s'));
         $req->bindParam(':userid', $this->userData['userid']);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
+        $this->Db->execute($req);
+    }
+
+    /**
+     * Populate userData from userid
+     *
+     * @param int $userid
+     * @return bool
+     */
+    private function populateUserDataFromUserid(int $userid): bool
+    {
+        $sql = 'SELECT * FROM users WHERE userid = :userid AND archived = 0';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $this->Db->execute($req);
+        if ($req->rowCount() === 1) {
+            // populate the userData
+            $this->userData = $req->fetch();
+            $this->updateLastLogin();
+            return true;
         }
+        return false;
     }
 
     /**
@@ -252,9 +284,7 @@ class Auth
         $sql = 'SELECT * FROM users WHERE email = :email AND archived = 0';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':email', $email);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         if ($req->rowCount() === 1) {
             // populate the userData
             $this->userData = $req->fetch();
@@ -269,18 +299,17 @@ class Auth
      *
      * @return void
      */
-    private function populateSession(): void
+    private function populateSession(int $team): void
     {
         $this->Session->set('auth', 1);
         $this->Session->set('userid', $this->userData['userid']);
+        $this->Session->set('team', $team);
 
         // load permissions
         $sql = 'SELECT * FROM `groups` WHERE id = :id LIMIT 1';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->userData['usergroup'], PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         $group = $req->fetch(PDO::FETCH_ASSOC);
 
         $this->Session->set('is_admin', $group['is_admin']);
@@ -292,9 +321,10 @@ class Auth
      * Works only in HTTPS, valable for 1 month.
      * 1 month = 60*60*24*30 =  2592000
      *
+     * @param int $team
      * @return void
      */
-    private function setToken(): void
+    private function setToken(int $team): void
     {
         $token = \hash('sha256', \bin2hex(\random_bytes(16)));
 
@@ -308,15 +338,13 @@ class Auth
             'samesite' => 'Lax',
         );
         \setcookie('token', $token, $cookieOptions);
+        \setcookie('token_team', (string) $team, $cookieOptions);
 
         // Update the token in SQL
         $sql = 'UPDATE users SET token = :token WHERE userid = :userid';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':token', $token);
         $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 }

@@ -16,7 +16,7 @@ class ExperimentsTest extends \PHPUnit\Framework\TestCase
 {
     protected function setUp(): void
     {
-        $this->Users = new Users(1);
+        $this->Users = new Users(1, 1);
         $this->Experiments = new Experiments($this->Users);
     }
 
@@ -44,12 +44,13 @@ class ExperimentsTest extends \PHPUnit\Framework\TestCase
 
     public function testRead()
     {
-        $this->Experiments->setId(1);
+        $new = $this->Experiments->create(0);
+        $this->Experiments->setId($new);
         $this->Experiments->canOrExplode('read');
         $experiment = $this->Experiments->read();
         $this->assertTrue(is_array($experiment));
-        $this->assertEquals('Experiment 1', $experiment['title']);
-        $this->assertEquals('20160729', $experiment['date']);
+        $this->assertEquals('Untitled', $experiment['title']);
+        //$this->assertEquals('20160729', $experiment['date']);
     }
 
     public function testReadRelated()
@@ -73,10 +74,10 @@ class ExperimentsTest extends \PHPUnit\Framework\TestCase
     {
         $this->Experiments->setId(1);
         $this->Experiments->canOrExplode('write');
-        $this->Experiments->updateVisibility('public');
-        $this->Experiments->updateVisibility('organization');
-        $this->Experiments->updateVisibility('team');
-        $this->Experiments->updateVisibility('user');
+        $this->Experiments->updatePermissions('read', 'public');
+        $this->Experiments->updatePermissions('read', 'organization');
+        $this->Experiments->updatePermissions('write', 'team');
+        $this->Experiments->updatePermissions('write', 'public');
     }
 
     public function testUpdateCategory()

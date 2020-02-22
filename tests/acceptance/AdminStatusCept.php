@@ -20,11 +20,11 @@ $I->seeInDatabase('status', array('name' => 'New status'));
 $I->wantTo('Edit the newly created status');
 $I->amOnPage('admin.php?tab=4');
 // fillField doesn't work if input is not in form
-$I->clearField('//*[@id="statusName_2"]'); // but clearField works…
-$I->click('//*[@id="statusName_2"]');
+$I->clearField('//*[@id="statusName_1"]'); // but clearField works…
+$I->click('//*[@id="statusName_1"]');
 // this is necessary to show the template and make the Save button work
 // even if it works without this in real life
-$I->pressKey('//*[@id="statusName_2"]', 'New status edited');
-$I->click('/html/body/section/div/div[6]/div[2]/ul/li[2]/ul/li[5]/button');
+$I->pressKey('//*[@id="statusName_1"]', 'New status edited');
+$I->click('#status_1 > ul:nth-child(1) > li:nth-child(5) > button:nth-child(1)');
 $I->waitForJS('return jQuery.active == 0', 10);
 $I->seeInDatabase('status', array('name' => 'New status edited'));

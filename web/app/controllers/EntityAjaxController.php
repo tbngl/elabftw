@@ -13,6 +13,7 @@ namespace Elabftw\Elabftw;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\InvalidCsrfTokenException;
+use Elabftw\Exceptions\UnauthorizedException;
 use Elabftw\Models\Database;
 use Elabftw\Models\Experiments;
 use Elabftw\Models\ItemsTypes;
@@ -82,9 +83,9 @@ try {
 
     // GET LINK LIST
     if ($Request->query->has('term') && !$Request->query->has('mention')) {
-        // we don't care about the entity type as getLinkList() is available in AbstractEntity
+        // we don't care about the entity type as getAutocomplete() is available in AbstractEntity
         $Entity = new Experiments($App->Users);
-        $Response->setData($Entity->getLinkList($Request->query->get('term')));
+        $Response->setData($Entity->getAutocomplete($Request->query->get('term'), $Request->query->get('source')));
     }
 
     /**
@@ -122,8 +123,8 @@ try {
     }
 
     // UPDATE VISIBILITY
-    if ($Request->request->has('updateVisibility')) {
-        $Entity->updateVisibility($Request->request->get('visibility'));
+    if ($Request->request->has('updatePermissions')) {
+        $Entity->updatePermissions($Request->request->get('rw'), $Request->request->get('value'));
     }
 
 
@@ -168,18 +169,23 @@ try {
     if ($Request->request->has('updateFileComment')) {
         $Entity->canOrExplode('write');
         $comment = $Request->request->filter('comment', null, FILTER_SANITIZE_STRING);
-        $id_arr = \explode('_', $Request->request->get('comment_id'));
-        $comment_id = (int) $id_arr[1];
-        if (Check::id($comment_id) === false) {
+        $idArr = \explode('_', $Request->request->get('commentId'));
+        $commentId = (int) $idArr[1];
+        if (Check::id($commentId) === false) {
             throw new IllegalActionException('The id parameter is invalid');
         }
 
-        $Entity->Uploads->updateComment($comment_id, $comment);
+        $Entity->Uploads->updateComment($commentId, $comment);
     }
 
     // CREATE UPLOAD
     if ($Request->request->has('upload')) {
         $Entity->Uploads->create($Request);
+    }
+
+    // REPLACE UPLOAD
+    if ($Request->request->has('replace')) {
+        $Entity->Uploads->replace($Request);
     }
 
     // ADD MOL FILE OR PNG
@@ -221,8 +227,8 @@ try {
 
     // DESTROY UPLOAD
     if ($Request->request->has('uploadsDestroy')) {
-        $upload = $Entity->Uploads->readFromId((int) $Request->request->get('upload_id'));
-        $Entity->Uploads->destroy((int) $Request->request->get('upload_id'));
+        $upload = $Entity->Uploads->readFromId((int) $Request->request->get('uploadId'));
+        $Entity->Uploads->destroy((int) $Request->request->get('uploadId'));
         // check that the filename is not in the body. see #432
         $msg = '';
         if (strpos($Entity->entityData['body'], $upload['long_name'])) {
@@ -234,7 +240,7 @@ try {
             'msg' => _('File deleted successfully') . $msg,
         ));
     }
-} catch (ImproperActionException | InvalidCsrfTokenException $e) {
+} catch (ImproperActionException | InvalidCsrfTokenException | UnauthorizedException $e) {
     $Response->setData(array(
         'res' => false,
         'msg' => $e->getMessage(),

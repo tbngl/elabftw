@@ -10,11 +10,13 @@ namespace Elabftw\Elabftw;
 
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\InvalidSchemaException;
+use Elabftw\Exceptions\UnauthorizedException;
 use Elabftw\Models\Config;
 use Elabftw\Models\Experiments;
 use Elabftw\Models\Users;
 use Exception;
 use Monolog\Logger;
+use PDOException;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\Session;
 
@@ -32,14 +34,10 @@ $Request->setSession($Session);
 
 try {
     // CONFIG.PHP
+    // Make sure config.php is readable
     $configFilePath = \dirname(__DIR__, 2) . '/config.php';
-    // redirect to install page if the config file is not here
     if (!is_readable($configFilePath)) {
-        $url = Tools::getUrlFromRequest($Request) . '/install/index.php';
-        // not pretty but gets the job done
-        $url = str_replace('app/', '', $url);
-        header('Location: ' . $url);
-        throw new ImproperActionException('Redirecting to install folder');
+        throw new ImproperActionException('The config file is missing! Did you run the installer?');
     }
     require_once $configFilePath;
     // END CONFIG.PHP
@@ -47,13 +45,10 @@ try {
     // INIT APP OBJECT
     // new Config will make the first SQL request
     // PDO will throw an exception if the SQL structure is not imported yet
-    // so we redirect to the install folder
     try {
         $App = new App($Request, $Session, new Config(), new Logger('elabftw'), new Csrf($Request, $Session));
-    } catch (Exception $e) {
-        $url = Tools::getUrlFromRequest($Request) . '/install/index.php';
-        header('Location: ' . $url);
-        throw new ImproperActionException('Redirecting to install folder');
+    } catch (PDOException $e) {
+        throw new ImproperActionException('The database structure is not loaded! Did you run the installer?');
     }
     //-*-*-*-*-*-*-**-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-//
     //     ____          _                            //
@@ -103,13 +98,18 @@ try {
         if ($App->Request->headers->get('X-Requested-With') != 'XMLHttpRequest') {
             // NO DON'T USE  THE FULL URL HERE BECAUSE IF SERVER IS HTTP it will fail badly
             header('Location: app/logout.php');
+        } else {
+            throw new UnauthorizedException(_('Your session expired.'));
         }
         exit;
     }
 
     // load the Users with a userid if we are auth
     if ($App->Request->getSession()->has('auth')) {
-        $App->loadUser(new Users((int) $App->Request->getSession()->get('userid')));
+        $App->loadUser(new Users(
+            (int) $App->Request->getSession()->get('userid'),
+            (int) $App->Request->getSession()->get('team')
+        ));
     }
 
     // ANONYMOUS
@@ -141,6 +141,8 @@ try {
     bindtextdomain($domain, \dirname(__DIR__, 2) . '/src/langs');
     textdomain($domain);
     // END i18n
+} catch (UnauthorizedException $e) {
+    // do nothing here, controller will display the error
 } catch (ImproperActionException | InvalidSchemaException | Exception $e) {
     // if something went wrong here it should stop whatever is after
     die($e->getMessage());

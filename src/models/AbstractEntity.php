@@ -49,23 +49,14 @@ abstract class AbstractEntity
     /** @var string $type experiments or items */
     public $type = '';
 
+    /** @var bool $bypassPermissions use that to ignore the canOrExplode calls */
+    public $bypassPermissions = false;
+
     /** @var string $page will be defined in children classes */
     public $page = '';
 
-    /** @var string $idFilter inserted in sql */
-    public $idFilter = '';
-
-    /** @var string $useridFilter inserted in sql */
-    public $useridFilter = '';
-
-    /** @var string $bookableFilter inserted in sql */
-    public $bookableFilter = '';
-
-    /** @var string $ratingFilter inserted in sql */
-    public $ratingFilter = '';
-
-    /** @var string $visibilityFilter inserted in sql */
-    public $visibilityFilter = '';
+    /** @var array $filters an array of arrays with filters for sql query */
+    public $filters;
 
     /** @var string $titleFilter inserted in sql */
     public $titleFilter = '';
@@ -75,9 +66,6 @@ abstract class AbstractEntity
 
     /** @var string $bodyFilter inserted in sql */
     public $bodyFilter = '';
-
-    /** @var string $categoryFilter inserted in sql */
-    public $categoryFilter = '';
 
     /** @var string $tagFilter inserted in sql */
     public $tagFilter = '';
@@ -120,6 +108,7 @@ abstract class AbstractEntity
         $this->Users = $users;
         $this->Comments = new Comments($this, new Email(new Config(), $this->Users));
         $this->itemsReadNb = 0;
+        $this->filters = array();
 
         if ($id !== null) {
             $this->setId($id);
@@ -172,9 +161,7 @@ abstract class AbstractEntity
             $sql = 'SELECT firstname FROM users WHERE userid = :userid';
             $req = $this->Db->prepare($sql);
             $req->bindParam(':userid', $this->entityData['lockedby'], PDO::PARAM_INT);
-            if ($req->execute() !== true) {
-                throw new DatabaseErrorException('Error while executing SQL query.');
-            }
+            $this->Db->execute($req);
             $firstname = $req->fetchColumn();
             if ($firstname === false || $firstname === null) {
                 throw new ImproperActionException('Could not find the firstname of the locker!');
@@ -193,10 +180,7 @@ abstract class AbstractEntity
         $req = $this->Db->prepare($sql);
         $req->bindParam(':lockedby', $this->Users->userData['userid'], PDO::PARAM_INT);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -205,14 +189,13 @@ abstract class AbstractEntity
      * Here be dragons!
      *
      * @param bool $getTags if true, might take a very long time, false in show mode
-     * @param bool $inTeam, set to false to disable team filtering
      *
      * @return array
      */
-    public function read(bool $getTags = true, bool $inTeam = true): array
+    public function read(bool $getTags = true): array
     {
         if ($this->id !== null) {
-            $this->idFilter = ' AND ' . $this->type . '.id = ' . (string) $this->id;
+            $this->addFilter($this->type . '.id', (string) $this->id);
         }
 
         $uploadsJoin = 'LEFT JOIN (
@@ -224,8 +207,14 @@ abstract class AbstractEntity
             AS uploads
             ON (uploads.up_item_id = ' . $this->type . ".id AND uploads.type = '" . $this->type . "')";
 
-        $tagsSelect = ", GROUP_CONCAT(DISTINCT tags.tag ORDER BY tags.id SEPARATOR '|') as tags, GROUP_CONCAT(DISTINCT tags.id) as tags_id";
-        $tagsJoin = 'LEFT JOIN tags2entity ON (' . $this->type . ".id = tags2entity.item_id AND tags2entity.item_type = '" . $this->type . "') LEFT JOIN tags ON (tags2entity.tag_id = tags.id)";
+
+        $tagsSelect = '';
+        $tagsJoin = '';
+        if ($getTags) {
+            $tagsSelect = ", GROUP_CONCAT(DISTINCT tags.tag ORDER BY tags.id SEPARATOR '|') as tags, GROUP_CONCAT(DISTINCT tags.id) as tags_id";
+            $tagsJoin = 'LEFT JOIN tags2entity ON (' . $this->type . ".id = tags2entity.item_id AND tags2entity.item_type = '" . $this->type . "') LEFT JOIN tags ON (tags2entity.tag_id = tags.id)";
+        }
+
 
         if ($this instanceof Experiments) {
             $select = 'SELECT DISTINCT ' . $this->type . ".*,
@@ -255,19 +244,17 @@ abstract class AbstractEntity
                 ) AS experiments_comments
                 ON (experiments_comments.item_id = experiments.id)';
 
-            $sql = $select . ' ';
-            if ($getTags) {
-                $sql .= $tagsSelect . ' ';
-            }
-            $sql .= $from . ' ' .
-            $usersJoin . ' ' .
-            $stepsJoin . ' ';
-            if ($getTags) {
-                $sql .= $tagsJoin . ' ';
-            }
-            $sql .= $statusJoin . ' ' .
-            $uploadsJoin . ' ' .
-            $commentsJoin;
+            $sql = implode(' ', array(
+                $select,
+                $tagsSelect,
+                $from,
+                $usersJoin,
+                $stepsJoin,
+                $tagsJoin,
+                $statusJoin,
+                $uploadsJoin,
+                $commentsJoin,
+            ));
         } elseif ($this instanceof Database) {
             $sql = "SELECT DISTINCT items.*, items_types.name AS category,
                 items_types.color,
@@ -277,7 +264,8 @@ abstract class AbstractEntity
                 (items_comments.recent_comment IS NOT NULL) AS has_comment,
                 SUBSTRING_INDEX(GROUP_CONCAT(stepst.next_step SEPARATOR '|'), '|', 1) AS next_step,
                 uploads.up_item_id, uploads.has_attachment,
-                CONCAT(users.firstname, ' ', users.lastname) AS fullname";
+                CONCAT(users.firstname, ' ', users.lastname) AS fullname,
+                GROUP_CONCAT(DISTINCT team_events.id) AS events_id";
 
             $from = 'FROM items
                 LEFT JOIN items_types ON (items.category = items_types.id)
@@ -292,6 +280,8 @@ abstract class AbstractEntity
                 items.id = steps_item_id
                 AND stepst.finished = 0)';
 
+            $eventsJoin = 'LEFT JOIN team_events ON (team_events.item = items.id)';
+
             $commentsJoin = 'LEFT JOIN (
                 SELECT MAX(items_comments.datetime) AS recent_comment,
                     items_comments.item_id FROM items_comments GROUP BY items_comments.item_id
@@ -299,40 +289,34 @@ abstract class AbstractEntity
                 ON (items_comments.item_id = items.id)';
 
             $sql .= ' ';
-            if ($getTags) {
-                $sql .= $tagsSelect . ' ';
-            }
-            $sql .= $from . ' ' . $uploadsJoin . ' ' . $stepsJoin . ' ' . $commentsJoin . ' ';
-            if ($getTags) {
-                $sql .= $tagsJoin . ' ';
-            }
+            $sql .= implode(' ', array(
+                $tagsSelect,
+                $from,
+                $uploadsJoin,
+                $stepsJoin,
+                $eventsJoin,
+                $commentsJoin,
+                $tagsJoin,
+            ));
         } else {
             throw new IllegalActionException('Nope.');
         }
 
-        if ($this->id === null && $inTeam === true) {
-            $sql .= ' WHERE ' . $this->type . '.team = :team';
-        } else {
-            $sql .= ' WHERE 1=1';
-        }
+        $sql .= ' WHERE 1=1';
 
-        $sql .= $this->idFilter . ' ' .
-            $this->useridFilter . ' ' .
-            $this->titleFilter . ' ' .
+        foreach ($this->filters as $filter) {
+            $sql .= sprintf(" AND %s = '%s'", $filter['column'], $filter['value']);
+        }
+        $sql .= $this->titleFilter . ' ' .
             $this->dateFilter . ' ' .
             $this->bodyFilter . ' ' .
-            $this->bookableFilter . ' ' .
-            $this->categoryFilter . ' ' .
             $this->queryFilter . ' ' .
-            $this->ratingFilter . ' ' .
-            $this->visibilityFilter . ' ' .
             ' GROUP BY id ' . ' ' .
             $this->tagFilter . ' ' .
             'ORDER BY ' . $this->order . ' ' . $this->sort . ', ' . $this->type . '.id ' . $this->sort . ' ' . $this->limit . ' ' . $this->offset;
 
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':team', $this->Users->userData['team'], PDO::PARAM_INT);
-        $req->execute();
+        $this->Db->execute($req);
 
         $itemsArr = $req->fetchAll();
         if ($itemsArr === false) {
@@ -350,8 +334,8 @@ abstract class AbstractEntity
             }
         }
 
-        // reduce the dimension of the array if we have only one item (idFilter set)
-        if (count($itemsArr) === 1 && !empty($this->idFilter)) {
+        // reduce the dimension of the array if we have only one item
+        if (count($itemsArr) === 1 && !empty($this->id)) {
             return $itemsArr[0];
         }
         return $finalArr;
@@ -372,7 +356,7 @@ abstract class AbstractEntity
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
         $req->bindParam(':type', $this->type);
-        $req->execute();
+        $this->Db->execute($req);
         $res = $req->fetchAll();
         if ($res === false) {
             return array();
@@ -429,7 +413,7 @@ abstract class AbstractEntity
         if ($this instanceof Database) {
             // if we are the admin doing an edit on a visibility = user item, we don't want to change the userid
             // first get the visibility
-            $sql = 'SELECT userid, visibility FROM items WHERE id = :id';
+            $sql = 'SELECT userid, canread FROM items WHERE id = :id';
             $req2 = $this->Db->prepare($sql);
             $req2->bindParam(':id', $this->id, PDO::PARAM_INT);
             if ($req2->execute() !== true) {
@@ -438,16 +422,14 @@ abstract class AbstractEntity
             $item = $req2->fetch();
 
             $newUserid = $this->Users->userData['userid'];
-            if ($item['visibility'] === 'user') {
+            if ($item['canread'] === 'user') {
                 $newUserid = $item['userid'];
             }
             $req->bindParam(':userid', $newUserid, PDO::PARAM_INT);
         }
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
 
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -475,48 +457,44 @@ abstract class AbstractEntity
     }
 
     /**
-     * Set the userid filter for read()
+     * Update read or write permissions for an entity
      *
+     * @param string $rw read or write
+     * @param string $value
      * @return void
      */
-    public function setUseridFilter(): void
+    public function updatePermissions(string $rw, string $value): void
     {
-        $this->useridFilter = ' AND ' . $this->type . '.userid = ' . $this->Users->userData['userid'];
-    }
-
-    /**
-     * Update the visibility for an entity
-     *
-     * @param string $visibility
-     * @return void
-     */
-    public function updateVisibility(string $visibility): void
-    {
-        Check::visibility($visibility);
         $this->canOrExplode('write');
+        Check::visibility($value);
+        Check::rw($rw);
+        if ($rw === 'read') {
+            $column = 'canread';
+        } else {
+            $column = 'canwrite';
+        }
 
-        $sql = 'UPDATE ' . $this->type . ' SET visibility = :visibility WHERE id = :id';
+        $sql = 'UPDATE ' . $this->type . ' SET ' . $column . ' = :value WHERE id = :id';
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':visibility', $visibility);
+        $req->bindParam(':value', $value);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
 
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException($sql);
-        }
+        $this->Db->execute($req);
     }
 
     /**
-     * If int, get the name of the team group instead of a number
+     * Get a list of visibility/team groups to display
      *
+     * @param string $rw read or write
      * @return string
      */
-    public function getVisibility(): string
+    public function getCan(string $rw): string
     {
         $TeamGroups = new TeamGroups($this->Users);
-        if (Check::id((int) $this->entityData['visibility']) !== false) {
-            return $TeamGroups->readName((int) $this->entityData['visibility']);
+        if (Check::id((int) $this->entityData['can' . $rw]) !== false) {
+            return $TeamGroups->readName((int) $this->entityData['can' . $rw]);
         }
-        return ucfirst($this->entityData['visibility']);
+        return ucfirst($this->entityData['can' . $rw]);
     }
 
     /**
@@ -528,6 +506,9 @@ abstract class AbstractEntity
      */
     public function canOrExplode(string $rw): void
     {
+        if ($this->bypassPermissions) {
+            return;
+        }
         $permissions = $this->getPermissions();
 
         // READ ONLY?
@@ -549,6 +530,9 @@ abstract class AbstractEntity
      */
     public function getPermissions(?array $item = null): array
     {
+        if ($this->bypassPermissions) {
+            return array('read' => true, 'write' => false);
+        }
         if (!isset($this->entityData) && !isset($item)) {
             $this->populate();
             if (!isset($this->entityData)) {
@@ -562,17 +546,14 @@ abstract class AbstractEntity
 
         $Permissions = new Permissions($this->Users, $item);
 
-        if ($this instanceof Experiments) {
-            return $Permissions->forExperiments();
+        if ($this instanceof Experiments || $this instanceof Database) {
+            return $Permissions->forExpItem();
         }
 
         if ($this instanceof Templates) {
             return $Permissions->forTemplates();
         }
 
-        if ($this instanceof Database) {
-            return $Permissions->forDatabase();
-        }
         return array('read' => false, 'write' => false);
     }
 
@@ -585,7 +566,8 @@ abstract class AbstractEntity
     public function getExpList(string $term): array
     {
         $Experiments = new Experiments($this->Users);
-        $Experiments->titleFilter = " AND title LIKE '%$term%'";
+        $term = filter_var($term, FILTER_SANITIZE_STRING);
+        $Experiments->titleFilter = " AND experiments.title LIKE '%$term%'";
 
         return $Experiments->read(false);
     }
@@ -599,26 +581,32 @@ abstract class AbstractEntity
     public function getDbList(string $term): array
     {
         $Database = new Database($this->Users);
-        $Database->titleFilter = " AND title LIKE '%$term%'";
+        $term = filter_var($term, FILTER_SANITIZE_STRING);
+        $Database->titleFilter = " AND items.title LIKE '%$term%'";
 
         return $Database->read(false);
     }
 
     /**
-     * Get an array formatted for the Link list on experiments
+     * Get an array formatted for the autocomplete input (link and bind)
      *
      * @param string $term the query
+     * @param string $source experiments or items
      * @return array
      */
-    public function getLinkList(string $term): array
+    public function getAutocomplete(string $term, string $source): array
     {
+        if ($source === 'experiments') {
+            $items = $this->getExpList($term);
+        } elseif ($source === 'items') {
+            $items = $this->getDbList($term);
+        } else {
+            throw new \InvalidArgumentException;
+        }
         $linksArr = array();
-        $itemsArr = $this->getDbList($term);
-
-        foreach ($itemsArr as $item) {
+        foreach ($items as $item) {
             $linksArr[] = $item['id'] . ' - ' . $item['category'] . ' - ' . substr($item['title'], 0, 60);
         }
-
         return $linksArr;
     }
 
@@ -667,10 +655,49 @@ abstract class AbstractEntity
         $req = $this->Db->prepare($sql);
         $req->bindParam(':category', $category, PDO::PARAM_INT);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
+        $this->Db->execute($req);
+    }
 
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
+    /**
+     * Add a filter to the query
+     *
+     * @param string $column the column on which to filter
+     * @param string $value the value to look for
+     * @return void
+     */
+    public function addFilter(string $column, string $value): void
+    {
+        $column = filter_var($column, FILTER_SANITIZE_STRING);
+        $value = filter_var($value, FILTER_SANITIZE_STRING);
+        $this->filters[] = array('column' => $column, 'value' => $value);
+    }
+
+    /**
+     * Get an array of id changed since the lastchange date supplied
+     *
+     * @param int $userid limit to this user
+     * @param string $period 20201206-20210101
+     * @return array
+     */
+    public function getIdFromLastchange(int $userid, string $period): array
+    {
+        if ($period === '') {
+            $period = '15000101-30000101';
         }
+        list($from, $to) = \explode('-', $period);
+        $sql = 'SELECT id FROM ' . $this->type . ' WHERE userid = :userid AND lastchange BETWEEN :from AND :to';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $req->bindParam(':from', $from);
+        $req->bindParam(':to', $to);
+        $this->Db->execute($req);
+
+        $idArr = array();
+        $res = $req->fetchAll();
+        foreach ($res as $item) {
+            $idArr[] = $item['id'];
+        }
+        return $idArr;
     }
 
     /**
@@ -678,7 +705,7 @@ abstract class AbstractEntity
      *
      * @return void
      */
-    protected function populate(): void
+    public function populate(): void
     {
         if ($this->id === null) {
             throw new ImproperActionException('No id was set.');

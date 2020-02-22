@@ -8,7 +8,7 @@
     <ul>
     {% for user in unvalidatedUsersArr %}
       <li>
-        {{ user.fullname|raw }} ({{ user.email }}) <button class='button usersValidate' data-userid='{{ user.userid }}'>{{ 'Validate'|trans }}</button>
+        {{ user.fullname|raw }} ({{ user.email }}) <button class='button btn btn-primary usersValidate' data-userid='{{ user.userid }}'>{{ 'Validate'|trans }}</button>
       </li>
     {% endfor %}
     </ul>
@@ -56,7 +56,7 @@
       <label for='link_href'>{{ 'Address where this link should point:'|trans }}</label>
       <input class='mb-4 form-control col-md-4' type='text' value='{{ App.teamConfigArr.link_href }}' name='link_href' id='link_href' />
 
-      <span class='m-0 button button-neutral togglableNext'>{{ 'Override general timestamping config'|trans }}</span>
+      <span class='m-0 button btn btn-neutral togglableNext'>{{ 'Override general timestamping config'|trans }}</span>
       <div class='togglableHidden mt-2'>
         <label for='stampprovider'>{{ 'URL for external timestamping service:'|trans }}</label>
         <input class='form-control col-md-4' type='url' placeholder='http://zeitstempel.dfn.de/' value='{{ App.teamConfigArr.stampprovider }}' name='stampprovider' id='stampprovider' />
@@ -84,7 +84,7 @@
       </div>
 
       <div class='submitButtonDiv'>
-        <button type='submit' class='button'>Save</button>
+        <button type='submit' class='button btn btn-primary'>Save</button>
       </div>
     </form>
   </div>
@@ -99,56 +99,12 @@
     <!-- CREATE A GROUP -->
     <label for='teamGroupCreate'>{{ 'Create a group'|trans }}</label>
     <input class='form-control col-md-4 custom-control-inline' id='teamGroupCreate' type='text' />
-    <button type='submit' id='teamGroupCreateBtn' class='button'>{{ 'Create'|trans }}</button>
+    <button type='submit' id='teamGroupCreateBtn' class='button btn btn-primary'>{{ 'Create'|trans }}</button>
     <!-- END CREATE GROUP -->
 
+    <!-- SHOW EXISTING GROUPS -->
     <div id='team_groups_div'>
-      <div>
-        <hr>
-        <section>
-          <!-- ADD USER TO GROUP -->
-          <label for='teamGroupUserAdd'>{{ 'Add this user'|trans }}</label>
-          <select class='form-control col-md-4' id='teamGroupUserAdd'>
-            {% for user in allTeamUsersArr %}
-              <option value='{{ user.userid }}'>{{ user.fullname|raw }}</option>
-            {% endfor %}
-          </select>
-
-          <label for='teamGroupGroupAdd'>{{ 'to this group'|trans }}</label>
-          <select class='form-control col-md-4' id='teamGroupGroupAdd'>
-            {% for teamGroup in teamGroupsArr %}
-              <option value='{{ teamGroup.id }}'>{{ teamGroup.name }}</option>
-            {% endfor %}
-            </select>
-          <div class='submitButtonDiv'>
-            <button type='submit' id='teamGroupGroupAddBtn' class='button'>{{ 'Add'|trans }}</button>
-          </div>
-        </section>
-
-        <section>
-          <hr>
-          <!-- RM USER FROM GROUP -->
-          <label for='teamGroupUserRm'>{{ 'Remove this user'|trans }}</label>
-          <select class='form-control col-md-4' id='teamGroupUserRm'>
-            {% for user in allTeamUsersArr %}
-              <option value='{{ user.userid }}'>{{ user.fullname|raw }}</option>
-            {% endfor %}
-          </select>
-
-          <label for='teamGroupGroupRm'>{{ 'from this group'|trans }}</label>
-          <select class='form-control col-md-4' id='teamGroupGroupRm'>
-            {% for teamGroup in teamGroupsArr %}
-              <option value='{{ teamGroup.id }}'>{{ teamGroup.name }}</option>
-            {% endfor %}
-          </select>
-          <div class='submitButtonDiv'>
-            <button type='submit' id='teamGroupGroupRmBtn' class='button button-delete'>{{ 'Remove'|trans }}</button>
-          </div>
-        </section>
-      </div>
-
-      <!-- SHOW EXISTING GROUPS -->
-      <hr>
+    <hr>
       <h3>{{ 'Existing groups'|trans }}</h3>
       {% for teamGroup in teamGroupsArr %}
         <div class='box'>
@@ -156,11 +112,10 @@
             <i class='fas fa-trash-alt clickable teamGroupDelete' data-id='{{ teamGroup.id }}' data-confirm="{{ 'Delete this?'|trans }}" style='float:right'></i>
           </a>
           <h3 title='Click to Edit' class='inline editable teamgroup_name' id='teamgroup_{{ teamGroup.id }}'>{{ teamGroup.name }}</h3>
-          <ul class='group-list'>
-            {% for user in teamGroup.users %}
-              <li>{{ user.fullname|raw }}</li>
-            {% endfor %}
-          </ul>
+          {% for user in teamGroup.users %}
+            <span class='user-badge clickable rmUserFromGroup' data-user='{{ user.userid }}' data-group='{{ teamGroup.id }}'>{{ user.fullname|raw }}</span>
+          {% endfor %}
+          <input class='form-control col-md-4 addUserToGroup d-block mt-2' autocomplete='off' data-group={{ teamGroup.id }} placeholder='{{ 'Add user'|trans }}' type='text' />
         </div>
       {% endfor %}
     </div>
@@ -197,7 +152,7 @@
       </div>
 
       <div class='col-auto mt-4'>
-        <button class='button' id='statusCreate'>{{ 'Save'|trans }}</button>
+        <button class='button btn btn-primary' id='statusCreate'>{{ 'Save'|trans }}</button>
       </div>
     </div>
   </div>
@@ -205,7 +160,7 @@
   <div class='box'>
     <h3>{{ 'Edit an Existing Status'|trans }}</h3>
     <hr>
-    <ul class='list-group'>
+    <ul class='list-group draggable sortable' data-axis='y' data-table='status'>
       {% for status in statusArr %}
         <li id='status_{{ status.category_id }}' class='list-group-item'>
           <ul class='list-inline'>
@@ -214,23 +169,11 @@
             </li>
             <li class='list-inline-item'><input type='checkbox' id='statusTimestamp_{{ status.category_id }}' {{ status.is_timestampable ? " checked" }} /> <label for='statusTimestamp_{{ status.category_id }}'>{{ 'Allow timestamp'|trans }}</label></li>
             <li class='list-inline-item'><input type='radio' name='defaultRadio' id='statusDefault_{{ status.category_id }}' {{ status.is_default ? " checked" }} /> <label for='statusDefault_{{ status.category_id }}'>{{ 'Default status'|trans }}</label></li>
-            <li class='list-inline-item'><button data-id='{{ status.category_id }}' class='button statusSave'>{{ 'Save'|trans }}</button></li>
+            <li class='list-inline-item'><button data-id='{{ status.category_id }}' class='button btn btn-primary statusSave'>{{ 'Save'|trans }}</button></li>
 
-            <li class='list-inline-item'><button data-id='{{ status.category_id }}' class='button button-delete statusDestroy' >{{ 'Delete'|trans }}</button></li>
+            <li class='list-inline-item'><button data-id='{{ status.category_id }}' class='button btn btn-danger statusDestroy' >{{ 'Delete'|trans }}</button></li>
+            <li class='list-inline-item'><i class='fas fa-sort sortableHandle align_right fa-2x'></i></li>
           </ul>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  <div class='box'>
-    <h3>{{ 'Modify ordering'|trans }}</h3>
-    <hr>
-
-    <ul class='draggable list-group sortable sortable-status' data-axis='y' data-table='status'>
-      {% for status in statusArr %}
-        <li class='list-group-item' id='statusOrder_{{ status.category_id }}'><i class='fas fa-sort'></i>
-          <span style='color:#{{ status.color }}'>{{ status.category }}</span>
         </li>
       {% endfor %}
     </ul>
@@ -263,7 +206,7 @@
 
     <textarea class='mceditable' id='itemsTypesTemplate' /></textarea>
     <div class='submitButtonDiv'>
-      <button id='itemsTypesCreate' class='button'>{{ 'Save'|trans }}</button>
+      <button id='itemsTypesCreate' class='button btn btn-primary'>{{ 'Save'|trans }}</button>
     </div>
   </div>
 
@@ -271,7 +214,7 @@
   <div class='box'>
     <h3>{{ 'Database Items Types'|trans }}</h3>
     <hr>
-    <ul class='list-group form-group'>
+    <ul class='list-group form-group draggable sortable' data-axis='y' data-table='items_types'>
       {% for itemType in itemsTypesArr %}
         <li id='itemstypes_{{ itemType.category_id }}' class='list-group-item'>
           <ul class='list-inline'>
@@ -289,31 +232,19 @@
               <label for='itemsTypesBookable_{{ itemType.category_id }}'>{{ 'Bookable'|trans }}</label>
             </li>
             <li class='list-inline-item'>
-              <button data-id='{{ itemType.category_id }}' class='button button-neutral itemsTypesShowEditor'>{{ 'Edit the template'|trans }}</button>
+              <button data-id='{{ itemType.category_id }}' class='button btn btn-neutral itemsTypesShowEditor'>{{ 'Edit the template'|trans }}</button>
             </li>
             <li class='list-inline-item'>
-              <button data-id='{{ itemType.category_id }}' class='button itemsTypesUpdate'>{{ 'Save'|trans }}</button>
+              <button data-id='{{ itemType.category_id }}' class='button btn btn-primary itemsTypesUpdate'>{{ 'Save'|trans }}</button>
             </li>
             <li class='list-inline-item'>
-              <button data-id='{{ itemType.category_id }}' class='button button-delete itemsTypesDestroy'>{{ 'Delete'|trans }}</button>
+              <button data-id='{{ itemType.category_id }}' class='button btn btn-danger itemsTypesDestroy'>{{ 'Delete'|trans }}</button>
             </li>
-            <li class='list-inline-item itemsTypesEditor' id='itemsTypesEditor_{{ itemType.category_id }}'>
+            <li class='list-inline-item mt-2 itemsTypesEditor' id='itemsTypesEditor_{{ itemType.category_id }}'>
               <textarea class='' id='itemsTypesTemplate_{{ itemType.category_id }}' />{{ itemType.template }}</textarea>
             </li>
+            <li class='list-inline-item'><i class='fas fa-sort sortableHandle align_right fa-2x'></i></li>
           </ul>
-        </li>
-      {% endfor %}
-    </ul>
-  </div>
-
-  <div class='box'>
-    <h3>{{ 'Modify ordering'|trans }}</h3>
-    <hr>
-
-    <ul class='draggable list-group sortable sortable-itemstypes' data-axis='y' data-table='items_types'>
-      {% for itemType in itemsTypesArr %}
-        <li class='list-group-item' id='itemstypesOrder_{{ itemType.category_id }}'><i class='fas fa-sort'></i>
-          <span style='color:#{{ itemType.color }}'>{{ itemType.category }}</span>
         </li>
       {% endfor %}
     </ul>
@@ -329,7 +260,7 @@
       {{ commonTplBody|raw }}
     </textarea>
     <div class='submitButtonDiv'>
-      <button type='submit' class='button'>{{ 'Save'|trans }}</button>
+      <button type='submit' class='button btn btn-primary'>{{ 'Save'|trans }}</button>
     </div>
   </div>
 </div>
@@ -365,6 +296,7 @@
       <select class='form-control col-md-4' id='separator_csv' autocomplete='off' name='delimiter'>
         <option value=';'>; ({{ 'semicolon'|trans }})</option>
         <option value=','>, ({{ 'comma'|trans }})</option>
+        <option value='tab'>{{ 'Tab'|trans }}</option>
       </select>
 
       {{ App.Csrf.getHiddenInput|raw }}
@@ -372,7 +304,7 @@
       <input id='csvuploader' name='file' type='file' accept='.csv' />
       <input name='type' type='hidden' value='csv' />
       <div class='submitButtonDiv'>
-        <button type='submit' class='button'>{{ 'Import CSV'|trans }}</button>
+        <button type='submit' class='button btn btn-primary'>{{ 'Import CSV'|trans }}</button>
       </div>
     </form>
   </div>
@@ -413,7 +345,7 @@
       <input name='type' type='hidden' value='zip' />
 
       <div class='submitButtonDiv'>
-        <button type='submit' class='button'>{{ 'Import ZIP'|trans }}</button>
+        <button type='submit' class='button btn btn-primary'>{{ 'Import ZIP'|trans }}</button>
       </div>
 
     </form>
@@ -424,7 +356,7 @@
 <div class='divhandle' id='tab8div'>
   <div class='box'>
     <h3>{{ 'Manage tags of the team'|trans }}</h3>
-    <p>{{ 'From here you can edit or delete the tags for your team. Click the tag to edit it. Then click the deduplicate button to merge similar tags.' }}</p>
+    <p>{{ 'From here you can edit or delete the tags for your team. Click the tag to edit it. Then click the deduplicate button to merge similar tags.'|trans }}</p>
     <div id='tag_manager'>
       {% for tag in tagsArr %}
         <p><i class='fas fa-clone clickable tagDeduplicate mr-1' title='Deduplicate' data-tag='{{ tag.tag }}'></i><i class='fas fa-trash-alt clickable tagDestroy mr-1' title='Delete' data-tagid='{{ tag.id }}' data-confirm="{{ 'Delete this?'|trans }}" /></i> <span class='tag-editable editable' data-tag='{{ tag.tag }}'>{{ tag.tag|raw }}</span></p>
@@ -437,12 +369,5 @@
   data-lang='{{ App.Users.userData.lang }}'
   data-confirm='{{ 'Delete this?'| trans }}'>
 
-<script src='app/js/tinymce.bundle.js?v={{ v }}'></script>
-{% if App.Config.configArr.debug %}
-  <script src='app/js/src/admin.js?v={{ v }}'></script>
-{% else %}
-  <script src='app/js/admin.min.js?v={{ v }}'></script>
-{% endif %}
-<script src='app/js/tabs.min.js?v={{ v }}'></script>
-<script src='app/js/tags.min.js?v={{ v }}'></script>
+<script src='app/js/admin.bundle.js?v={{ v }}'></script>
 {% endblock body %}

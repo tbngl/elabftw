@@ -1,10 +1,42 @@
+<!-- Modal for adding a user to a team -->
+<div class='modal fade' id='editUserToTeamModal' tabindex='-1' role='dialog' aria-labelledby='editUserToTeamModalLabel' aria-hidden='true'>
+  <div class='modal-dialog' role='document'>
+    <div class='modal-content'>
+      <div class='modal-header'>
+        <h5 class='modal-title' id='editUserToTeamModalLabel'>{{ 'Change teams for user'|trans }}</h5>
+        <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+          <span aria-hidden='true'>&times;</span>
+        </button>
+      </div>
+      <form method='post' action='app/controllers/SysconfigController.php'>
+        <div class='modal-body' data-wait='{{ 'Please wait…' }}'>
+            {{ App.Csrf.getHiddenInput|raw }}
+            <input type='hidden' id='editUserToTeamUserid' name='userid' value='' />
+            <input type='hidden' id='editUserToTeamAction' name='action' value='' />
+            <input type='hidden' name='editUserToTeam' value='1' />
+            <label for='teamSelect'>{{ 'Select a team'|trans }}</label>
+            <select id='teamSelect' class='form-control' name='team'>
+              {% for team in teamsArr %}
+                <option value='{{ team.id }}'>{{ team.name }}</option>
+              {% endfor %}
+            </select>
+        </div>
+        <div class='modal-footer'>
+          <button type='button' class='btn btn-secondary' data-dismiss='modal'>{{ 'Cancel'|trans }}</button>
+          <button type='submit' class='btn btn-primary'>{{ 'Edit'|trans }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <form class='box' method='get'>
   <div class='form-group'>
     <label for='search-users'>{{ 'Search users'|trans }}</label>
     <input type='text' autocomplete='off' class='form-control col-md-4 custom-control-inline' id='search-users' value='{{ App.Request.query.get('q') }}' name='q' />
     <!-- stay on correct tab -->
     <input type='hidden' value='3' name='tab' />
-    <input type='submit' class='button' value='{{ 'Search'|trans }}' />
+    <input type='submit' class='button btn btn-primary' value='{{ 'Search'|trans }}' />
   </div>
 </form>
 
@@ -18,7 +50,20 @@
             {% for user in usersArr %}
             <li class='list-group-item'>
               <ul class='list-inline'>
-                <p>Team: {{ user.teamname|raw }} | Last login: {{ user.last_login ?? 'never' }}</p>
+                <p>Last login: {{ user.last_login ?? 'never' }}</p>
+                <!-- TEAM -->
+                <li class='list-inline-item mb-2'>
+                  <label for='usersUpdateTeam_{{ user.userid }}'>{{ 'Team(s)'|trans }}</label>
+                    {% for team in UsersHelper.getTeamsFromUserid(user.userid) %}
+                      <span class='btn btn-secondary clickable' data-team='{{ team.id }}'>{{ team.name }}</span>
+                    {% endfor %}
+                    {% if App.Session.get('is_sysadmin') %}
+                    <span class='btn btn-primary clickable editUserToTeam modalToggle' data-modal='editUserToTeamModal' data-action='add' data-userid='{{ user.userid }}'><i class='color-white fas fa-plus-circle'></i> {{ 'Add team'|trans }}</span>
+                    <span class='btn btn-danger clickable editUserToTeam modalToggle' data-modal='editUserToTeamModal' data-action='rm' data-userid='{{ user.userid }}'><i class='color-white fas fa-minus-circle'></i> {{ 'Remove team'|trans }}</span>
+                    {% endif %}
+                </li>
+
+
                 <form method='post' action='app/controllers/UsersController.php'>
                   <div class='form-group'>
                     <input type='hidden' value='true' name='usersUpdate' />
@@ -50,16 +95,6 @@
                     <li class='list-inline-item'>
                       <label for='usersUpdateEmail_{{ user.userid }}'>{{ 'Email'|trans }}</label>
                       <input autocomplete='off' class='form-control custom-control-inline' id='usersUpdateEmail_{{ user.userid }}' type='email' value='{{ user.email }}' name='email' />
-                    </li>
-
-                    <!-- TEAM -->
-                    <li class='list-inline-item'>
-                      <label for='usersUpdateTeam_{{ user.userid }}'>{{ 'Team'|trans }}</label>
-                      <select class='form-control custom-control-inline' name='team' id='usersUpdateTeam_{{ user.userid }}'>
-                        {% for team in teamsArr %}
-                          <option value='{{ team.id }}' {{ user.team == team.id ? " selected='selected'" }}>{{ team.name }}</option>
-                        {% endfor %}
-                      </select>
                     </li>
 
                     <!-- PERMISSION GROUP -->
@@ -99,24 +134,23 @@
 
                     <!-- SAVE -->
                     <li class='list-inline-item'>
-                      <button type='submit' class='button'>{{ 'Save'|trans }}</button>
+                      <button type='submit' class='button btn btn-primary'>{{ 'Save'|trans }}</button>
                     </li>
 
                     <!-- ARCHIVE USER -->
                     <li class='list-inline-item'>
                       {% if user.archived %}
-                        <button class='button toggleArchiveUser' data-userid='{{ user.userid }}'>{{ 'Unarchive user'|trans }}</button>
+                        <button class='button btn btn-neutral toggleArchiveUser' data-userid='{{ user.userid }}'>{{ 'Unarchive user'|trans }}</button>
                       {% else %}
-                        <button class='button button-delete toggleArchiveUser' data-userid='{{ user.userid }}'>{{ 'Archive user'|trans }}</button>
+                        <button class='button btn btn-danger toggleArchiveUser' data-userid='{{ user.userid }}'>{{ 'Archive user'|trans }}</button>
                       {% endif %}
                     </li>
 
                     <!-- DESTROY USER -->
                     <li class='list-inline-item'>
-                      <button class='button button-delete destroyUser' data-userid='{{ user.userid }}'>{{ 'Delete user'|trans }}</button>
+                      <button class='button btn btn-danger destroyUser' data-userid='{{ user.userid }}'>{{ 'Delete user'|trans }}</button>
                    </li>
                 </form>
-
                 <hr>
               </ul>
             {% endfor %}
@@ -126,4 +160,67 @@
     {% endif %}
     </div>
 {% endif %}
-<script src='app/js/editusers.min.js?v={{ v }}'></script>
+
+{% if App.Config.configArr.local_register %}
+  <form class='box' method='post' autocomplete='off' action='app/controllers/CreateUserController.php'>
+    <h3>{{ 'Add account'|trans }}</h3>
+    <div class='form-group'>
+      {{ App.Csrf.getHiddenInput|raw }}
+      {# because the select will be disabled, the team won't be sent, so add it as hidden for admin page #}
+      {% if App.Request.getScriptName|split('/')|last == 'admin.php' %}
+        <input type='hidden' name='team' value='{{ App.Users.userData.team }}' />
+      {% endif %}
+      <input type='hidden' name='frompage' value='{{ App.Request.getScriptName|split('/')|last }}' />
+      <div class='row'>
+
+        <!-- TEAM -->
+        <div class='col-md-2'>
+          <label for='create-user-team'>{{ 'Team'|trans }}</label>
+          <select {{ App.Request.getScriptName|split('/')|last == 'admin.php' ? 'disabled' }} class='form-control custom-control-inline' name='team' id='create-user-team'>
+            {% for team in teamsArr %}
+              <option value='{{ team.id }}' {{ App.Users.userData.team == team.id ? " selected='selected'" }}>{{ team.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <!-- EMAIL -->
+        <div class='col-md-2'>
+          <label for='email'>{{ 'Email'|trans }}</label>
+          <input name='email' class='form-control' type='email' id='email' required />
+        </div>
+
+        <!-- FIRSTNAME -->
+        <div class='col-md-2'>
+          <label for='firstname'>{{ 'Firstname'|trans }}</label>
+          <input name='firstname' class='form-control' type='text' id='firstname' required />
+        </div>
+
+        <!-- LASTNAME -->
+        <div class='col-md-2'>
+          <label for='lastname'>{{ 'Lastname'|trans }}</label>
+          <input name='lastname' class='form-control' type='text' id='lastname' required />
+        </div>
+
+        <!-- GROUP -->
+        <div class='col-md-2'>
+          <label for='create-user-group'>{{ 'Group'|trans }}</label>
+          <select class='form-control custom-control-inline' name='usergroup' id='create-user-group'>
+            {% if App.Session.get('is_sysadmin') %}
+              <option value='1'>Sysadmins</option>
+            {% endif %}
+            <option value='2'>Admins</option>
+            <option value='3'>Admins + Lock power</option>
+            <option value='4' selected='selected'>Users</option>
+          </select>
+        </div>
+
+        <!-- SUBMIT -->
+        <div class='col-md-2'>
+          <input type='submit' name='submit' style='margin-top: 26px' class='button btn btn-primary' value='{{ 'create'|trans }}' />
+        </div>
+      </div>
+    </div>
+  </form>
+{% endif %}
+
+<script src='app/js/editusers.bundle.js?v={{ v }}'></script>

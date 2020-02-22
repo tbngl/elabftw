@@ -27,13 +27,14 @@ $Response->prepare($Request);
 try {
     // get total number of experiments
     $Entity = new Experiments($App->Users);
-    $Entity->setUseridFilter();
+    $Entity->addFilter('experiments.userid', $App->Users->userData['userid']);
     $itemsArr = $Entity->read(false);
     $count = \count($itemsArr);
 
     // generate stats for the pie chart with experiments status
     // see https://developers.google.com/chart/interactive/docs/reference?csw=1#datatable-class
     $UserStats = new UserStats($App->Users, $count);
+    $UserStats->makeStats();
     $stats = array();
     // columns
     $stats['cols'] = array(

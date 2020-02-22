@@ -13,8 +13,8 @@
 
 <!-- STATUS STAT -->
 <section class='box'>
-    {% if count == 0 %} {# fix division by zero #}
-        {{ 'No statistics available yet.'|trans }}
+    {% if count == 0 %}
+      {{ 'No statistics available yet.'|trans }}
     {% else %}
     <i class='fas fa-chart-pie fa-lg mr-1'></i><h5 class='d-inline'>{{ 'Statistics'|trans }}</h5>
         <hr>
@@ -32,11 +32,5 @@
 </section>
 
 <script src='https://www.gstatic.com/charts/loader.js'></script>
-
-{% if App.Config.configArr.debug %}
-    <script src='app/js/src/profile.js?v={{ v }}'></script>
-{% else %}
-    <script src='app/js/profile.min.js?v={{ v }}'></script>
-{% endif %}
-
+<script src='app/js/profile.bundle.js?v={{ v }}'></script>
 {% endblock body %}

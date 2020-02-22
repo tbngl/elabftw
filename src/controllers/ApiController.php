@@ -10,7 +10,9 @@ declare(strict_types=1);
 
 namespace Elabftw\Controllers;
 
+use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Exceptions\UnauthorizedException;
 use Elabftw\Interfaces\ControllerInterface;
 use Elabftw\Models\AbstractCategory;
 use Elabftw\Models\AbstractEntity;
@@ -18,14 +20,17 @@ use Elabftw\Models\ApiKeys;
 use Elabftw\Models\Database;
 use Elabftw\Models\Experiments;
 use Elabftw\Models\ItemsTypes;
+use Elabftw\Models\Scheduler;
 use Elabftw\Models\Status;
 use Elabftw\Models\Uploads;
 use Elabftw\Models\Users;
 use Elabftw\Services\Check;
+use Elabftw\Services\MakeBackupZip;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * For API requests
@@ -35,17 +40,23 @@ class ApiController implements ControllerInterface
     /** @var Request $Request instance of Request */
     private $Request;
 
-    /** @var AbstractCategory $Category instance of ItemsTypes or Status*/
+    /** @var AbstractCategory $Category instance of ItemsTypes or Status
+     * @psalm-suppress PropertyNotSetInConstructor */
     private $Category;
 
-    /** @var AbstractEntity $Entity instance of Entity */
+    /** @var AbstractEntity $Entity instance of Entity
+     * @psalm-suppress PropertyNotSetInConstructor */
     private $Entity;
+
+    /** @var Scheduler $Scheduler instance of Scheduler
+     * @psalm-suppress PropertyNotSetInConstructor */
+    private $Scheduler;
 
     /** @var Users $Users the authenticated user */
     private $Users;
 
     /** @var array $allowedMethods allowed HTTP methods */
-    private $allowedMethods = array('GET', 'POST');
+    private $allowedMethods = array('GET', 'POST', 'DELETE');
 
     /** @var bool $canWrite can we do POST methods? */
     private $canWrite = false;
@@ -56,6 +67,9 @@ class ApiController implements ControllerInterface
     /** @var string $endpoint experiments, items or uploads */
     private $endpoint;
 
+    /** @var string $param used by backupzip to get the period */
+    private $param;
+
     /**
      * Constructor
      *
@@ -64,6 +78,11 @@ class ApiController implements ControllerInterface
     public function __construct(Request $request)
     {
         $this->Request = $request;
+        // Check if the Authorization Token was sent along
+        if (!$this->Request->server->has('HTTP_AUTHORIZATION')) {
+            throw new UnauthorizedException('No access token provided!');
+        }
+
         $this->parseReq();
     }
 
@@ -74,66 +93,82 @@ class ApiController implements ControllerInterface
      */
     public function getResponse(): Response
     {
-        // Check the HTTP method is allowed
-        if (!\in_array($this->Request->server->get('REQUEST_METHOD'), $this->allowedMethods, true)) {
-            // send error 405 for Method Not Allowed, with Allow header as per spec:
-            // https://tools.ietf.org/html/rfc7231#section-7.4.1
-            return new Response('Invalid HTTP request method!', 405, array('Allow' => \implode(', ', $this->allowedMethods)));
-        }
-
-        // Check if the Authorization Token was sent along
-        if (!$this->Request->server->has('HTTP_AUTHORIZATION')) {
-            // send error 401 if it's lacking an Authorization header, with WWW-Authenticate header as per spec:
-            // https://tools.ietf.org/html/rfc7235#section-3.1
-            return new Response('No access token provided!', 401, array('WWW-Authenticate' => 'Bearer'));
-        }
-
-        // GET UPLOAD
-        if ($this->endpoint === 'uploads') {
-            return $this->getUpload();
-        }
-
         // GET ENTITY/CATEGORY
         if ($this->Request->server->get('REQUEST_METHOD') === 'GET') {
+            // GET UPLOAD
+            if ($this->endpoint === 'uploads') {
+                return $this->getUpload();
+            }
+            if ($this->endpoint === 'backupzip') {
+                return $this->getBackupZip();
+            }
+
             if ($this->endpoint === 'experiments' || $this->endpoint === 'items') {
-                return $this->getEntity($this->id);
+                /*
+                if ($this->param === 'zip') {
+                    return $this->getZip();
+                }
+                 */
+                return $this->getEntity();
             }
             if ($this->endpoint === 'items_types' || $this->endpoint === 'status') {
                 return $this->getCategory();
             }
+            if ($this->endpoint === 'bookable') {
+                return $this->getBookable();
+            }
+            if ($this->endpoint === 'events') {
+                return $this->getEvents();
+            }
         }
+
 
         // POST request
 
-        // POST means write access for the access token
-        if (!$this->canWrite) {
-            return new Response('Cannot use readonly key with POST method!', 403);
-        }
-        // FILE UPLOAD
-        if ($this->Request->files->count() > 0) {
-            return $this->uploadFile();
+        if ($this->Request->server->get('REQUEST_METHOD') === 'POST') {
+            // POST means write access for the access token
+            if (!$this->canWrite) {
+                return new Response('Cannot use readonly key with POST method!', 403);
+            }
+            // FILE UPLOAD
+            if ($this->Request->files->count() > 0) {
+                return $this->uploadFile();
+            }
+
+            // TITLE DATE BODY UPDATE
+            if ($this->Request->request->has('date')) {
+                return $this->updateEntity();
+            }
+
+            // ADD TAG
+            if ($this->Request->request->has('tag')) {
+                return $this->createTag();
+            }
+
+            // ADD LINK
+            if ($this->Request->request->has('link')) {
+                return $this->createLink();
+            }
+
+            if ($this->endpoint === 'events') {
+                return $this->createEvent();
+            }
+
+            // CREATE AN EXPERIMENT/ITEM
+            if ($this->Entity instanceof Database) {
+                return $this->createItem();
+            }
+            return $this->createExperiment();
         }
 
-        // TITLE DATE BODY UPDATE
-        if ($this->Request->request->has('title')) {
-            return $this->updateEntity();
+        // DELETE requests
+        if ($this->Request->server->get('REQUEST_METHOD') === 'DELETE') {
+            return $this->destroyEvent();
         }
 
-        // ADD TAG
-        if ($this->Request->request->has('tag')) {
-            return $this->createTag();
-        }
-
-        // ADD LINK
-        if ($this->Request->request->has('link')) {
-            return $this->createLink();
-        }
-
-        // CREATE AN EXPERIMENT/ITEM
-        if ($this->Entity instanceof Database) {
-            return $this->createItem();
-        }
-        return $this->createExperiment();
+        // send error 405 for Method Not Allowed, with Allow header as per spec:
+        // https://tools.ietf.org/html/rfc7231#section-7.4.1
+        return new Response('Invalid HTTP request method!', 405, array('Allow' => \implode(', ', $this->allowedMethods)));
     }
 
     /**
@@ -154,25 +189,27 @@ class ApiController implements ControllerInterface
 
         // assign the endpoint (experiments, items, uploads, items_types, status)
         $this->endpoint = array_shift($args) ?? '';
+        $this->param = array_shift($args) ?? '';
 
         // verify the key and load user info
-        $Users = new Users();
-        $ApiKeys = new ApiKeys($Users);
-        $keyArr = $ApiKeys->readFromApiKey($this->Request->server->get('HTTP_AUTHORIZATION'));
-        $Users->populate((int) $keyArr['userid']);
-        $this->Users = $Users;
+        $ApiKeys = new ApiKeys(new Users());
+        $keyArr = $ApiKeys->readFromApiKey($this->Request->server->get('HTTP_AUTHORIZATION') ?? '');
+        $this->Users = new Users((int) $keyArr['userid'], (int) $keyArr['team']);
         $this->canWrite = (bool) $keyArr['canWrite'];
 
         // load Entity
         // if endpoint is uploads we don't actually care about the entity type
-        if ($this->endpoint === 'experiments' || $this->endpoint === 'uploads') {
-            $this->Entity = new Experiments($Users, $this->id);
-        } elseif ($this->endpoint === 'items') {
-            $this->Entity = new Database($Users, $this->id);
+        if ($this->endpoint === 'experiments' || $this->endpoint === 'uploads' || $this->endpoint === 'backupzip') {
+            $this->Entity = new Experiments($this->Users, $this->id);
+        } elseif ($this->endpoint === 'items' || $this->endpoint === 'bookable') {
+            $this->Entity = new Database($this->Users, $this->id);
         } elseif ($this->endpoint === 'items_types') {
-            $this->Category = new ItemsTypes($Users);
+            $this->Category = new ItemsTypes($this->Users);
         } elseif ($this->endpoint === 'status') {
-            $this->Category = new Status($Users);
+            $this->Category = new Status($this->Users);
+        } elseif ($this->endpoint === 'events') {
+            $this->Entity = new Database($this->Users, $this->id);
+            $this->Scheduler = new Scheduler($this->Entity);
         } else {
             throw new ImproperActionException('Bad endpoint!');
         }
@@ -180,14 +217,15 @@ class ApiController implements ControllerInterface
 
     /**
      * @apiDefine GetEntity
-     * @apiParam {Number} id Entity id
+     * @apiParam {Number} [id] Entity id
      */
 
     /**
-     * @api {get} /items/:id Read a database item
+     * @api {get} /items/[:id] Read items from database
      * @apiName GetItem
      * @apiGroup Entity
-     * @apiParam {Number} id Entity id
+     * @apiDescription Get the data from items or just one item if id is set.
+     * @apiUse GetEntity
      * @apiSuccess {String} body Main content
      * @apiSuccess {String} category Item type
      * @apiSuccess {Number} category_id Id of the item type
@@ -209,10 +247,11 @@ class ApiController implements ControllerInterface
      */
 
     /**
-     * @api {get} /experiments/:id Read an experiment
+     * @api {get} /experiments/[:id] Read experiments
      * @apiName GetExperiment
      * @apiGroup Entity
-     * @apiParam {Number} id Entity id
+     * @apiDescription Get the data from experiments or just one experiment if id is set.
+     * @apiUse GetEntity
      * @apiSuccess {String} body Main content
      * @apiSuccess {String} category Status
      * @apiSuccess {Number} category_id Id of the status
@@ -239,19 +278,19 @@ class ApiController implements ControllerInterface
      * @apiSuccess {String} up_item_id Id of the uploaded items
      * @apiSuccess {String[]} uploads Array of uploaded files
      * @apiSuccess {Number} userid User id of the owner
-     * @apiSuccess {String} visibility Visibility of the experiment
+     * @apiSuccess {String} canread Read permission of the experiment
+     * @apiSuccess {String} canwrite Write permission of the experiment
      *
      */
 
     /**
      * Get experiment or item, one or several
      *
-     * @param int|null $id id of the entity
      * @return Response
      */
-    private function getEntity(?int $id): Response
+    private function getEntity(): Response
     {
-        if ($id === null) {
+        if ($this->id === null) {
             return new JsonResponse($this->Entity->read());
         }
         $this->Entity->canOrExplode('read');
@@ -263,6 +302,84 @@ class ApiController implements ControllerInterface
         $this->Entity->entityData['steps'] = $this->Entity->Steps->readAll();
 
         return new JsonResponse($this->Entity->entityData);
+    }
+
+    private function getBackupZip(): Response
+    {
+        // only let a sysadmin get that
+        if (!$this->Users->userData['is_sysadmin']) {
+            throw new IllegalActionException('Only a sysadmin can use this endpoint!');
+        }
+        $Zip = new MakeBackupZip($this->Entity, $this->param);
+        $Response = new StreamedResponse();
+        $Response->setCallback(function () use ($Zip) {
+            $Zip->getZip();
+        });
+        return $Response;
+    }
+
+    /*
+    private function getZip(): Response
+    {
+        // no permission check here so for the moment only let a sysadmin get that
+        // used for backups
+        if (!$this->Users->userData['is_sysadmin']) {
+            throw new IllegalActionException('Only a sysadmin can use this endpoint!');
+        }
+        $idList = $this->Entity->getIdFromLastchange($this->secondParam);
+        // MakeStreamZip requires a space separated string
+        $idList = implode(' ', $idList);
+        $Zip = new MakeStreamZip($this->Entity, $idList);
+        return new BinaryFileResponse($Zip->getZip());
+    }
+     */
+
+    private function getBookable(): Response
+    {
+        $this->Entity->addFilter('bookable', '1');
+        return $this->getEntity();
+    }
+
+    /**
+     * @api {get} /events/[:id] Get events
+     * @apiName GetEvent
+     * @apiGroup Events
+     * @apiDescription Get all the events from the team or just one event if the id is set
+     * @apiExample {curl} Example usage:
+     * curl -H "Authorization: $TOKEN" "https://elab.example.org/api/v1/events/2"
+     * @apiSuccess {Number} id Id of the event
+     * @apiSuccess {Number} team Id of the team
+     * @apiSuccess {Number} item Booked item
+     * @apiSuccess {String} start Start date/time
+     * @apiSuccess {String} end End date/time
+     * @apiSuccess {String} title Comment for the event
+     * @apiSuccess {Number} userid Id of the user that booked it
+     * @apiSuccessExample {json} Success-Response:
+     * {
+     *     "id":"2",
+     *     "team":"1",
+     *     "item":"105",
+     *     "start":"2019-11-29T09:30:00",
+     *     "end":"2019-11-29T14:30:00",
+     *     "title":"ahaha",
+     *     "userid":"1"
+     * }
+     */
+
+    /**
+     * Get events from the team
+     *
+     * @return Response
+     */
+    private function getEvents(): Response
+    {
+        // return all events if there is no id
+        if ($this->id === null) {
+            // TODO allow filtering of this through sent data
+            return new JsonResponse($this->Scheduler->readAllFromTeam('2018-12-23T00:00:00 01:00', '2119-12-23T00:00:00 01:00'));
+        }
+        $this->Scheduler->setId($this->id);
+        return new JsonResponse($this->Scheduler->readFromId());
     }
 
     /**
@@ -386,7 +503,7 @@ class ApiController implements ControllerInterface
             return new Response('Creating database items is not supported.', 400);
         }
         $id = $this->Entity->create(0);
-        return new JsonResponse(array('id' => $id));
+        return new JsonResponse(array('result' => 'success', 'id' => $id));
     }
 
     /**
@@ -419,8 +536,11 @@ class ApiController implements ControllerInterface
             return new Response('Cannot create an item with an item type id not in your team!', 403);
         }
 
+        if ($this->id === null) {
+            return new Response('Invalid id', 400);
+        }
         $id = $this->Entity->create($this->id);
-        return new JsonResponse(array('id' => $id));
+        return new JsonResponse(array('result' => 'success', 'id' => $id));
     }
 
     /**
@@ -474,6 +594,69 @@ class ApiController implements ControllerInterface
     private function createTag(): Response
     {
         $this->Entity->Tags->create($this->Request->request->get('tag'));
+        return new JsonResponse(array('result' => 'success'));
+    }
+
+    /**
+     * @api {post} /events/:id Create event
+     * @apiName AddEvent
+     * @apiGroup Events
+     * @apiDescription Create an event in the scheduler for an item
+     * @apiParam {Sring} start Start time
+     * @apiParam {Number} end End time
+     * @apiParam {String} title Comment for the booking
+     * @apiSuccess {String} result Success
+     * @apiSuccess {String} id Id of new event
+     * @apiError {Number} error Error mesage
+     * @apiParamExample {Json} Request-Example:
+     *     {
+     *       "start": "2019-11-30T12:00:00",
+     *       "end": "2019-11-30T14:00:00"
+     *       "title": "Booked from API"
+     *     }
+     */
+
+    /**
+     * Create an event in the scheduler for an item
+     *
+     * @return Response
+     */
+    private function createEvent(): Response
+    {
+        if ($this->id === null) {
+            throw new ImproperActionException('Item id missing!');
+        }
+        $this->Entity->setId($this->id);
+        $id = $this->Scheduler->create(
+            $this->Request->request->get('start'),
+            $this->Request->request->get('end'),
+            $this->Request->request->get('title'),
+        );
+        return new JsonResponse(array('result' => 'success', 'id' => $id));
+    }
+
+    /**
+     * @api {delete} /events/:id Destroy event
+     * @apiName DestroyEvent
+     * @apiGroup Events
+     * @apiParam {Number} id Id of the event
+     * @apiDescription Delete an event
+     * @apiSuccess {String} result Success
+     * @apiError {String} error Error mesage
+     */
+
+    /**
+     * Delete an event
+     *
+     * @return Response
+     */
+    private function destroyEvent(): Response
+    {
+        if ($this->id === null) {
+            throw new ImproperActionException('Event id missing!');
+        }
+        $this->Scheduler->setId($this->id);
+        $this->Scheduler->destroy();
         return new JsonResponse(array('result' => 'success'));
     }
 

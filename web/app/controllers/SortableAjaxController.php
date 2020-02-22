@@ -14,6 +14,8 @@ use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\FilesystemErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Exceptions\InvalidCsrfTokenException;
+use Elabftw\Exceptions\UnauthorizedException;
 use Elabftw\Models\ItemsTypes;
 use Elabftw\Models\Status;
 use Elabftw\Models\Templates;
@@ -55,8 +57,9 @@ try {
         default:
             throw new IllegalActionException('Bad table for updateOrdering.');
     }
-    $Entity->updateOrdering($App->Users, $Request->request->all());
-} catch (ImproperActionException $e) {
+    $OrderingParams = new OrderingParams($Request->request->get('table'), $Request->request->get('ordering'));
+    $Entity->updateOrdering($OrderingParams);
+} catch (ImproperActionException | InvalidCsrfTokenException | UnauthorizedException $e) {
     $Response->setData(array(
         'res' => false,
         'msg' => $e->getMessage(),

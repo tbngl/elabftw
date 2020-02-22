@@ -37,6 +37,14 @@ try {
     // CSRF
     $App->Csrf->validate();
 
+    // Check if email domain is correct
+    if ($App->Config->configArr['email_domain']) {
+        $splitEmail = explode('@', $Request->request->get('email'));
+        if ($splitEmail[1] !== $App->Config->configArr['email_domain']) {
+            throw new ImproperActionException(_('This email domain is not allowed.'));
+        }
+    }
+
     if ((Check::id((int) $Request->request->get('team')) === false) ||
         !$Request->request->get('firstname') ||
         !$Request->request->get('lastname') ||
@@ -48,10 +56,10 @@ try {
     // Create user
     $App->Users->create(
         $Request->request->get('email'),
-        (int) $Request->request->get('team'),
+        array($Request->request->get('team')),
         $Request->request->get('firstname'),
         $Request->request->get('lastname'),
-        $Request->request->get('password')
+        $Request->request->get('password') ?? '',
     );
 
     if ($App->Users->needValidation) {

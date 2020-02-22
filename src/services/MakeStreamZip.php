@@ -25,9 +25,6 @@ class MakeStreamZip extends AbstractMake
     /** @var ZipStream $Zip the ZipStream object */
     private $Zip;
 
-    /** @var string $idList the input ids */
-    private $idList = '';
-
     /** @var array $idArr the input ids but in an array */
     private $idArr = array();
 
@@ -47,7 +44,7 @@ class MakeStreamZip extends AbstractMake
      * @param string $idList 1+3+5+8
      * @return void
      */
-    public function __construct(AbstractEntity $entity, $idList)
+    public function __construct(AbstractEntity $entity, string $idList)
     {
         parent::__construct($entity);
 
@@ -58,7 +55,7 @@ class MakeStreamZip extends AbstractMake
 
         $this->Zip = new ZipStream();
 
-        $this->idList = $idList;
+        $this->idArr = explode(' ', $idList);
     }
 
     /**
@@ -80,6 +77,11 @@ class MakeStreamZip extends AbstractMake
      */
     public function getFileName(): string
     {
+        if (\count($this->idArr) === 1) {
+            $this->Entity->setId((int) $this->idArr[0]);
+            $this->Entity->canOrExplode('read');
+            return $this->getBaseFileName() . '.zip';
+        }
         return 'export.elabftw.zip';
     }
 
@@ -91,7 +93,6 @@ class MakeStreamZip extends AbstractMake
      */
     public function getZip(): void
     {
-        $this->idArr = explode(' ', $this->idList);
         foreach ($this->idArr as $id) {
             $this->addToZip((int) $id);
         }
@@ -133,17 +134,19 @@ class MakeStreamZip extends AbstractMake
     }
 
     /**
-     * Folder begins with date for experiments
+     * Folder and zip file name begins with date for experiments
      *
-     * @return void
+     * @return string
      */
-    private function nameFolder(): void
+    private function getBaseFileName(): string
     {
         if ($this->Entity instanceof Experiments) {
-            $this->folder = $this->Entity->entityData['date'] . ' - ' . Filter::forFilesystem($this->Entity->entityData['title']);
+            return $this->Entity->entityData['date'] . ' - ' . Filter::forFilesystem($this->Entity->entityData['title']);
         } elseif ($this->Entity instanceof Database) {
-            $this->folder = $this->Entity->entityData['category'] . ' - ' . Filter::forFilesystem($this->Entity->entityData['title']);
+            return $this->Entity->entityData['category'] . ' - ' . Filter::forFilesystem($this->Entity->entityData['title']);
         }
+
+        throw new ImproperActionException(sprintf('Entity of type %s is not allowed in this context', get_class($this->Entity)));
     }
 
     /**
@@ -210,8 +213,12 @@ class MakeStreamZip extends AbstractMake
             $entityArr = $this->Entity->entityData;
             // save the uploads in entityArr for the json file
             $entityArr['uploads'] = $uploadedFilesArr;
+            // add links
+            $entityArr['links'] = $this->Entity->Links->readAll();
+            // add steps
+            $entityArr['steps'] = $this->Entity->Steps->readAll();
+            $this->folder = $this->getBaseFileName();
 
-            $this->nameFolder();
             $this->addTimestampFiles($id);
             if (!empty($uploadedFilesArr)) {
                 $this->addAttachedFiles($uploadedFilesArr);

@@ -9,6 +9,7 @@ build
 cache
 config.php*
 *.min.css
+*.css.map
 *.min.js
 *.js.map
 *.bundle.js
@@ -19,3 +20,6 @@ tests/_support/_generated*
 uploads
 /vendor/
 web/app/css/tinymce/fonts/*.woff
+.sass-cache
+src/ts/*.js
+web/app/js/scripts-tags.html

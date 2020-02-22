@@ -146,7 +146,7 @@ if ($Request->query->count() > 0) {
 
         // Visibility search
         if (!empty($vis)) {
-            $Entity->visibilityFilter = ' AND ' . $Entity->type . ".visibility = '$vis'";
+            $Entity->addFilter($Entity->type . '.canread', $vis);
         }
 
         // Date search
@@ -167,36 +167,30 @@ if ($Request->query->count() > 0) {
                 } elseif (empty($Request->query->get('owner'))) {
                     $owner = $App->Users->userData['userid'];
                 }
-                $Entity->useridFilter = ' AND experiments.userid = ' . $owner;
                 // all the team is 0 as userid
-                if ($Request->query->get('owner') === '0') {
-                    $Entity->useridFilter = '';
+                if ($Request->query->get('owner') !== '0') {
+                    $Entity->addFilter('experiments.userid', $owner);
                 }
             }
 
             // Status search
             if (!empty($status)) {
-                $Entity->categoryFilter = ' AND ' . $Entity->type . ".category = '$status'";
+                $Entity->addFilter($Entity->type . '.category', $status);
             }
         } else {
             // Rating search
             if (!empty($rating)) {
-                $Entity->ratingFilter = ' AND ' . $Entity->type . ".rating LIKE '$rating'";
+                $Entity->addFilter($Entity->type . '.rating', (string) $rating);
             }
 
             // FILTER ON DATABASE ITEMS TYPES
             if (Check::id((int) $Request->query->get('type')) !== false) {
-                $Entity->categoryFilter = 'AND items_types.id = ' . $Request->query->get('type');
+                $Entity->addFilter('items_types.id', $Request->query->get('type'));
             }
         }
 
         // READ the results
-        $inTeam = true;
-        // look outside the team if we're filtering for organization
-        if ($vis === 'organization') {
-            $inTeam = false;
-        }
-        $itemsArr = $Entity->read(true, $inTeam);
+        $itemsArr = $Entity->read(true);
 
         // RENDER THE SECOND PART OF THE PAGE
         // with a subpart of show.html (no create new/filter menu, and no head)

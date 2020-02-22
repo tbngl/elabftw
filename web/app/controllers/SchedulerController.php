@@ -16,7 +16,6 @@ use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Models\Database;
 use Elabftw\Models\Scheduler;
-use Elabftw\Models\Users;
 use Exception;
 use Symfony\Component\HttpFoundation\JsonResponse;
 
@@ -46,18 +45,13 @@ try {
         );
     }
 
-    // READ ALL FROM TEAM
-    if ($Request->request->get('all') === '1') {
-        $Response->setData($Scheduler->readAllFromTeam());
-    }
-
-    // READ
-    if ($Request->request->has('read')) {
-        if ($Request->request->get('read') === 'all') {
-            $Response->setData($Scheduler->readAllFromTeam());
+    // GET EVENTS
+    if ($Request->query->has('start') && $Request->query->has('end')) {
+        if (empty($Request->query->get('item'))) {
+            $Response->setData($Scheduler->readAllFromTeam($Request->query->get('start'), $Request->query->get('end')));
         } else {
-            $Database->setId((int) $Request->request->get('item'));
-            $Response->setData($Scheduler->read());
+            $Database->setId((int) $Request->query->get('item'));
+            $Response->setData($Scheduler->read($Request->query->get('start'), $Request->query->get('end')));
         }
     }
 
@@ -66,7 +60,7 @@ try {
         $Scheduler->setId((int) $Request->request->get('id'));
         $eventArr = $Scheduler->readFromId();
         if ($eventArr['userid'] === $App->Session->get('userid')) {
-            $Scheduler->updateStart($Request->request->get('start'), $Request->request->get('end'));
+            $Scheduler->updateStart($Request->request->get('delta'));
         }
     }
     // UPDATE END
@@ -77,24 +71,23 @@ try {
             $Scheduler->updateEnd($Request->request->get('end'));
         }
     }
+
+    // BIND
+    if ($Request->request->has('bind')) {
+        $Scheduler->setId((int) $Request->request->get('id'));
+        $Scheduler->bind((int) $Request->request->get('expid'));
+    }
+
+    // UNBIND
+    if ($Request->request->has('unbind')) {
+        $Scheduler->setId((int) $Request->request->get('id'));
+        $Scheduler->unbind();
+    }
+
     // DESTROY
     if ($Request->request->has('destroy')) {
         $Scheduler->setId((int) $Request->request->get('id'));
-        $eventArr = $Scheduler->readFromId();
-        if ($eventArr['userid'] === $Session->get('userid')) {
-            $Scheduler->destroy();
-        } elseif ($Session->get('is_admin')) {
-            // check user is in our team
-            $Me = new Users((int) $Session->get('userid'));
-            $Booker = new Users((int) $eventArr['userid']);
-            if ($Booker->userData['team'] === $Me->userData['team']) {
-                $Scheduler->destroy();
-            } else {
-                throw new ImproperActionException(Tools::error(true));
-            }
-        } else {
-            throw new ImproperActionException(Tools::error(true));
-        }
+        $Scheduler->destroy();
     }
 } catch (ImproperActionException $e) {
     $Response->setData(array(

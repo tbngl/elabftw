@@ -99,6 +99,23 @@ final class Db
     }
 
     /**
+     * Execute a prepared statement and throw exception if it doesn't return true
+     *
+     * @param \PDOStatement $req
+     * @param array|null $arr
+     *
+     * @return bool
+     */
+    public function execute(\PDOStatement $req, ?array $arr = null): bool
+    {
+        $res = $req->execute($arr);
+        if ($res !== true) {
+            throw new DatabaseErrorException('Error while executing SQL query.');
+        }
+        return $res;
+    }
+
+    /**
      * Make a simple query
      *
      * @param string $sql The SQL query

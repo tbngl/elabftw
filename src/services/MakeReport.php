@@ -64,13 +64,12 @@ class MakeReport
             'userid',
             'firstname',
             'lastname',
-            'team',
             'email',
             'validated',
             'usergroup',
             'archived',
             'last_login',
-            'teamname',
+            'full_name',
             'diskusage_in_bytes',
             'diskusage_formatted',
             'exp_total',
@@ -90,7 +89,7 @@ class MakeReport
             $diskUsage = $this->getDiskUsage((int) $user['userid']);
             // get total number of experiments
             $Entity = new Experiments(new Users((int) $user['userid']));
-            $Entity->setUseridFilter();
+            $Entity->addFilter('experiments.userid', $user['userid']);
             $itemsArr = $Entity->read(false);
             $count = \count($itemsArr);
 

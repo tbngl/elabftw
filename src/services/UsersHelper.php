@@ -11,7 +11,7 @@ declare(strict_types=1);
 namespace Elabftw\Services;
 
 use Elabftw\Elabftw\Db;
-use Elabftw\Exceptions\DatabaseErrorException;
+use Elabftw\Exceptions\ImproperActionException;
 use PDO;
 
 /**
@@ -39,11 +39,46 @@ class UsersHelper
         $sql = 'SELECT COUNT(id) FROM experiments WHERE userid = :userid';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':userid', $userid, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
 
         return (bool) $req->fetchColumn();
+    }
+
+    /**
+     * Get the team id where the user belong
+     *
+     * @param int $userid
+     * @return array
+     */
+    public function getTeamsFromUserid(int $userid): array
+    {
+        $sql = 'SELECT DISTINCT teams.id, teams.name FROM teams
+            CROSS JOIN users2teams ON (users2teams.users_id = :userid AND users2teams.teams_id = teams.id)';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $this->Db->execute($req);
+
+        $res = $req->fetchAll();
+        if ($res === false) {
+            throw new ImproperActionException('Could not find a team for this user!');
+        }
+        return $res;
+    }
+
+    /**
+     * Get teams id from a userid
+     *
+     * @param int $userid
+     * @return array
+     */
+    public function getTeamsIdFromUserid(int $userid): array
+    {
+        $teams = $this->getTeamsFromUserid($userid);
+        $teamsIdArr = array();
+        foreach ($teams as $team) {
+            $teamsIdArr[] = $team['id'];
+        }
+        return $teamsIdArr;
     }
 
     /**
@@ -76,9 +111,7 @@ class UsersHelper
     {
         $sql = 'SELECT COUNT(*) AS usernb FROM users';
         $req = $this->Db->prepare($sql);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         $test = $req->fetch();
 
         return $test['usernb'] === '0';
@@ -92,12 +125,12 @@ class UsersHelper
      */
     private function isFirstUserInTeam(int $team): bool
     {
-        $sql = 'SELECT COUNT(*) AS usernb FROM users WHERE team = :team';
+        $sql = 'SELECT COUNT(*) AS usernb FROM users
+            CROSS JOIN users2teams ON (users2teams.users_id = users.userid)
+            WHERE users2teams.teams_id = :team';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':team', $team, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         $test = $req->fetch();
 
         return $test['usernb'] === '0';

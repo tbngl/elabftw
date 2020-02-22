@@ -2,11 +2,31 @@
 
 {% block body %}
 
-{% include('view-edit.html') %}
+<!-- Modal for timestamping -->
+<div class='modal fade' id='timestampModal' tabindex='-1' role='dialog' aria-labelledby='timestampModalLabel' aria-hidden='true'>
+  <div class='modal-dialog' role='document'>
+    <div class='modal-content'>
+      <div class='modal-header'>
+        <h5 class='modal-title' id='timestampModalLabel'>{{ 'Timestamp Experiment'|trans }}</h5>
+        <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+          <span aria-hidden='true'>&times;</span>
+        </button>
+      </div>
+      <div class='modal-body' data-wait='{{ 'Please wait…' }}'>
+        <p><i class='fas fa-exclamation-triangle'></i>
+          {{ 'Once timestamped an experiment cannot be edited anymore! Are you sure you want to do this?'|trans }}
+        </p>
+      </div>
+      <div class='timestamp-error'></div>
+      <div class='modal-footer'>
+        <button type='button' class='btn btn-secondary' data-dismiss='modal'>{{ 'Cancel'|trans }}</button>
+        <button type='button' id='goForTimestamp' class='btn btn-primary'>{{ 'Timestamp'|trans }}</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-<!-- add moment lib -->
-<script src='app/js/moment.bundle.js?v={{ v }}'></script>
-<script src='app/js/relative-moment.min.js?v={{ v }}'></script>
+{% include('view-edit.html') %}
 
 {% if Entity.entityData.timestamped %}
 <div class='alert alert-success'><i class='fas fa-info-circle'></i>
@@ -35,7 +55,8 @@
         {{ Entity.entityData.rating|stars|raw }}
       {% endif %}
     {% endif %}
-    <i class='fas fa-eye' title='{{ 'Visibility'|trans }}'></i> {{ Entity.getVisibility }}
+    <i class='fas fa-eye' title='{{ 'Visibility'|trans }}'></i> {{ Entity.getCan('read') }}
+    <i class='fas fa-pencil-alt' title='{{ 'Edit'|trans }}'></i> {{ Entity.getCan('write') }}
   </p>
 
   <!-- DATE -->
@@ -107,16 +128,10 @@
 
   <!-- show timestamp button if not timestamped already -->
   {% if not Entity.entityData.timestamped and Entity.isTimestampable and Entity.type == 'experiments' and not App.Session.has('anon') %}
-      <a class='elab-tooltip' href='#'>
-          <span>{{ 'Timestamp Experiment'|trans }}</span>
-          <i class='far fa-calendar-check' id='confirmTimestamp'></i>
-      </a>
-      <div id='confirmTimestampDiv' style='display:none;' data-wait='{{ 'Please wait…' }}' title='{{ 'Timestamp this experiment?'|trans }}'>
-          <p>
-              <span class='ui-icon ui-icon-alert' style='float:left; margin:12px 12px 20px 0;'></span>
-              {{ 'Once timestamped an experiment cannot be edited anymore! Are you sure you want to do this?'|trans }}
-          </p>
-      </div>
+    <a class='elab-tooltip' href='#'>
+      <span>{{ 'Timestamp Experiment'|trans }}</span>
+      <i class='far fa-calendar-check modalToggle' data-modal='timestampModal'></i>
+    </a>
   {% endif %}
 
   </span><!-- end view-action-button -->
@@ -139,6 +154,11 @@
       {% endif %}
       {{ Entity.entityData.title|raw }}
   </div>
+
+  <!-- SHOW EVENTS -->
+  {% if Entity.entityData.events_id %}<i class='far fa-calendar-alt'></i>
+    {{ '%s%d%sSee bookings%s'|trans|format("<a href='team.php?item=", Entity.entityData.id, "'>", "</a>")|raw }}
+  {% endif %}
 
   <!-- SHOW NEXT STEP -->
   {% set next_step = Entity.entityData.next_step %}
@@ -171,7 +191,7 @@
 
   {% if Entity.type == 'items' %}
       <!-- SHOW USER -->
-      {{ 'Last modified by'|trans }} {{ Entity.entityData.fullname|raw }}
+      <p>{{ 'Last modified by'|trans }} {{ Entity.entityData.fullname|raw }}</p>
   {% endif %}
 
 
@@ -201,9 +221,9 @@
                 {% endfor %}
             {% endif %}
 
-            <textarea id='commentsCreateArea' autocomplete='off' placeholder='{{ 'Add a comment'|trans }}'></textarea>
+            <textarea id='commentsCreateArea' autocomplete='off' placeholder='{{ 'Add a comment'|trans }}' aria-label='Comment area'></textarea>
             <div id='commentsCreateButtonDiv' class='submitButtonDiv'>
-                <button class='button' id='commentsCreateButton' data-expid='{{ Entity.id }}'>{{ 'Save'|trans }}</button>
+                <button class='button btn btn-primary' id='commentsCreateButton' data-expid='{{ Entity.id }}'>{{ 'Save'|trans }}</button>
             </div>
         </div>
     </section>
@@ -229,10 +249,5 @@
     data-edit='{{ Entity.Users.userData.sc_edit }}'>
 </div>
 
-{% if App.Config.configArr.debug %}
-    <script src='app/js/src/view.js?v={{ v }}'></script>
-{% else %}
-    <script src='app/js/view.min.js?v={{ v }}'></script>
-{% endif %}
-
+<script src='app/js/view.bundle.js?v={{ v }}'></script>
 {% endblock body %}

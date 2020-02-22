@@ -149,7 +149,7 @@ class ExperimentsController extends AbstractEntityController
 
         // CATEGORY FILTER
         if (Check::id((int) $this->App->Request->query->get('cat')) !== false) {
-            $this->Entity->categoryFilter = ' AND status.id = ' . $this->App->Request->query->get('cat');
+            $this->Entity->addFilter('status.id', $this->App->Request->query->get('cat'));
             $searchType = 'filter';
         }
         // TAG FILTER
@@ -189,6 +189,8 @@ class ExperimentsController extends AbstractEntityController
             $this->Entity->order = 'experiments.' . $order;
         } elseif ($order === 'comment') {
             $this->Entity->order = 'experiments_comments.recent_comment';
+        } elseif ($order === 'user') {
+            $this->Entity->order = 'experiments.userid';
         }
 
         // SORT
@@ -209,7 +211,7 @@ class ExperimentsController extends AbstractEntityController
         }
 
         // PAGINATION
-        $limit = (int) $this->Entity->Users->userData['limit_nb'] ?? 15;
+        $limit = (int) ($this->Entity->Users->userData['limit_nb'] ?? 15);
         if ($this->App->Request->query->has('limit')) {
             $limit = Check::limit((int) $this->App->Request->query->get('limit'));
         }
@@ -232,7 +234,7 @@ class ExperimentsController extends AbstractEntityController
         // READ ALL ITEMS
 
         if ($this->App->Session->get('anon')) {
-            $this->Entity->visibilityFilter = "AND experiments.visibility = 'public'";
+            $this->Entity->addFilter($this->Entity->type . '.canread', 'public');
             $itemsArr = $this->Entity->read($getTags);
         // related filter
         } elseif (Check::id((int) $this->App->Request->query->get('related')) !== false) {
@@ -241,7 +243,7 @@ class ExperimentsController extends AbstractEntityController
         } else {
             // filter by user only if we are not making a search
             if (!$this->Entity->Users->userData['show_team'] && ($searchType === '' || $searchType === 'filter')) {
-                $this->Entity->setUseridFilter();
+                $this->Entity->addFilter('experiments.userid', $this->App->Users->userData['userid']);
             }
 
             $itemsArr = $this->Entity->read($getTags);

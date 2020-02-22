@@ -39,11 +39,12 @@ jobs:
           - v1-dep-master-
           # Any branch if there are none on the default branch - this should be unnecessary if you have your default branch configured correctly
           - v1-dep-
-      # This is based on your 1.0 configuration file or project settings
+      # copy the circleci config
+      - run: sudo cp tests/config-circleci.php config.php
       - run: sudo apt-get update
       - run: sudo DEBIAN_FRONTEND=noninteractive apt-get install -y mariadb-server graphicsmagick libgraphicsmagick1-dev
       - run: sudo service mysql start
-      - run: sudo docker-php-ext-install gd gettext zip pdo_mysql
+      - run: sudo docker-php-ext-install gd gettext zip pdo_mysql exif
       - run: yes|sudo pecl install gmagick-2.0.5RC1
       - run: sudo docker-php-ext-enable gmagick
       # The following line was run implicitly in your 1.0 builds based on what CircleCI inferred about the structure of your project. In 2.0 you need to be explicit about which commands should be run. In some cases you can discard inferred commands if they are not relevant to your project.
@@ -64,15 +65,12 @@ jobs:
       - run: sudo mysql -uroot -e "create database phpunit;"
       - run: sudo mysql -uroot -e "create user phpunit identified by 'phpunit';"
       - run: sudo mysql -uroot -e "grant all privileges on phpunit.* to 'phpunit'@'%'"
-      - run: sudo mysql -uroot phpunit < src/sql/structure.sql
-      - run: sudo mysql -uroot phpunit < tests/_data/phpunit.sql
+      - run: php bin/install start
+      - run: php bin/console dev:populate -p phpunitftw -m phpunit@example.com -u phpunit -s phpunit -y
       # Tests
       - run:
-          name: Run CSS linter
-          command: yarn run csslint
-      - run:
           name: Run Javascript linter
-          command: yarn run jslint
+          command: yarn run jslint-ci
       - run:
           name: Run PHP-CS-Fixer
           command: ./vendor/bin/php-cs-fixer fix --config=.php_cs.dist -v --dry-run --stop-on-violation --using-cache=no
@@ -84,6 +82,6 @@ jobs:
           command: yarn run vulns
       - run:
           name: Code coverage
-          command: ./vendor/bin/codecept run --skip acceptance --skip functionnal --coverage --coverage-xml
+          command: ./vendor/bin/codecept run --skip api --skip acceptance --coverage --coverage-xml
       - codecov/upload:
           file: /home/circleci/elabftw/elabftw/tests/_output/coverage.xml

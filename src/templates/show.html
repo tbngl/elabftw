@@ -3,102 +3,128 @@
 {% block body %}
 
 {% if not searchPage %}
-<div class='row'>
-    <!-- LEFT MENU - CREATE NEW -->
-    <div class='col-md-2'>
-    {% if not App.Session.get('anon') %}
-        <div class='dropright'>
-            <button class='btn dropdown-toggle' type='button' id='dropdownMenu1' data-toggle='dropdown' aria-haspopup='true' aria-expanded='true'>{{ 'Create new'|trans }} <span class='caret'></span></button>
-        <ul class='dropdown-menu' aria-labelledby='dropdownMenu1'>
-            {% if Entity.type == 'experiments' %}
-                <a href='?create=true'><li class='dropdown-item'>
-                    {% trans %}
-                    Experiment
-                    {% plural 1 %}
-                    Experiments
-                    {% endtrans %}
-                </li></a>
-                <div class="dropdown-divider"></div>
-                {% if templatesArr|length > 0 %}
-                <h6 class="dropdown-header">{{ 'Templates'|trans }}</h6>
-                    {% for tpl in templatesArr %}
-                        <a href='?create=true&tpl={{ tpl.id }}'>
-                        <li class='dropdown-item'>
-                            {{ tpl.name|raw }}
-                        </li></a>
-                    {% endfor %}
-                {% else %}
-                <h6 class="dropdown-header">{{ 'No templates found'|trans }}</h6>
-                {% endif %}
-                <div class="dropdown-divider"></div>
-                    <a href='ucp.php?tab=3'>
-                        <li class='dropdown-item'>{{ 'Manage templates'|trans }}</li>
-                    </a>
-            {% else %}
-                {% for category in categoryArr %}
-                    <a href='?create=true&tpl={{ category.category_id }}'>
-                        <li style='color:#{{ category.color }}' class='dropdown-item'>{{ category.category }}</li>
-                    </a>
-                {% endfor %}
-            {% endif %}
-        </ul>
-        </div>
-    {% endif %}
-    </div>
-    <!-- RIGHT MENU -->
-    <!-- we hide this menu for small devices -->
-<div class='col-md-10 hidden-xs'>
-
-  <!-- FILTERS -->
-  <form id='filter-order-sort' class='autosubmit form-inline align_right'>
-    <div class='form-group'>
-      <input type='hidden' name='tags[]' value='{{ tag }}' />
-      <input type='hidden' name='q' value='{{ query }}' />
-
-      <!-- CATEGORY -->
-      <select name='cat' class='form-control select-filter-status'>
-          <option value=''>{{ Entity.type == 'experiments' ? 'Filter status'|trans : 'Filter by type'|trans }}</option>
-          {% for category in categoryArr %}
-              <option value='{{ category.category_id }}' {{ App.Request.query.get('cat') == category.category_id ? 'selected'}}>
-              {{ category.category }}</option>
-          {% endfor %}
-
-      </select>
-      <input type='hidden' name='mode' value='show' />
-
-      <!-- ORDER -->
-      <select name='order' class='form-control select-order'>
-          <option value=''>{{ 'Order by'|trans }}</option>
-          <option value='cat' {{ App.Request.query.get('order') == 'cat' ? 'selected' }}>{{ 'Category'|trans }}</option>
-          <option value='id' {{ App.Request.query.get('order') == 'id' ? 'selected' }}>{{ 'Id'|trans }}</option>
-          <option value='date' {{ App.Request.query.get('order') == 'date' ? 'selected' }}>{{ 'Date'|trans }}</option>
-          {% if Entity.type == 'database' %}
-              <option value='rating' {{ App.Request.query.get('order') == 'rating' ? 'selected' }}>{{ 'Rating'|trans }}</option>
-          {% else %}
-              <option value='comment' {{ App.Request.query.get('order') == 'comment' ? 'selected' }}>{{ 'Comment'|trans }}</option>
-          {% endif %}
-          <option value='title' {{ App.Request.query.get('order') == 'title' ? 'selected' }}>{{ 'Title'|trans }}</option>
-      </select>
-
-      <!-- SORT -->
-      <select name='sort' class='form-control select-sort'>
-          <option value=''>{{ 'Sort'|trans }}</option>
-          <option value='desc' {{ App.Request.query.get('sort') == 'desc' ? 'selected' }}>{{ 'DESC'|trans }}</option>
-          <option value='asc' {{ App.Request.query.get('sort') == 'asc' ? 'selected' }}>{{ 'ASC'|trans }}</option>
-      </select>
-
-      <!-- LIMIT -->
-      <select autocomplete='off' name='limit' id='select-limit' class='form-control'>
-        <option value=''>{{ 'Results per page'|trans }}</option>
-        {% for option in limitOptions(limit) %}
-        <option {{ option == limit ? 'selected' }} value='{{ option }}'>{{ option }}</option>
+<!-- Modal for create new database -->
+<div class='modal fade' id='createModal' tabindex='-1' role='dialog' aria-labelledby='createModalLabel' aria-hidden='true'>
+  <div class='modal-dialog' role='document'>
+    <div class='modal-content'>
+      <div class='modal-header'>
+        <h5 class='modal-title' id='createModalLabel'>{{ 'Select type'|trans }}</h5>
+        <button type='button' class='close' data-dismiss='modal' aria-label='Close'>
+          <span aria-hidden='true'>&times;</span>
+        </button>
+      </div>
+      <div class='modal-body'>
+        {% for category in categoryArr %}
+          <button style='color:#{{ category.color }}; border: 1px #ccc solid; margin-bottom: 5px' class='btn d-block'>
+            <a style='color:#{{ category.color }}' href='?create=true&tpl={{ category.category_id }}'>{{ category.category }}</a>
+          </button>
         {% endfor %}
-      </select>
-
+      </div>
     </div>
-  </form>
-
+  </div>
 </div>
+<!-- end modal -->
+<div class='row'>
+  <!-- LEFT MENU: FILTER/ORDER/SORT/LIMIT -->
+  <!-- we hide this menu for small devices -->
+  <div class='col-md-10 hidden-xs'>
+
+    <form id='filter-order-sort' class='autosubmit form-inline'>
+      <div class='form-group'>
+        <input type='hidden' name='tags[]' value='{{ tag }}' />
+        <input type='hidden' name='q' value='{{ query }}' />
+
+        <!-- CATEGORY -->
+        <select name='cat' class='form-control select-filter-status' aria-label='Filter category'>
+            <option value=''>{{ Entity.type == 'experiments' ? 'Filter status'|trans : 'Filter by type'|trans }}</option>
+            {% for category in categoryArr %}
+                <option value='{{ category.category_id }}' {{ App.Request.query.get('cat') == category.category_id ? 'selected'}}>
+                {{ category.category }}</option>
+            {% endfor %}
+
+        </select>
+        <input type='hidden' name='mode' value='show' />
+
+        <!-- ORDER -->
+        <select name='order' class='form-control select-order' aria-label='Order by'>
+            <option value=''>{{ 'Order by'|trans }}</option>
+            <option value='cat' {{ App.Request.query.get('order') == 'cat' ? 'selected' }}>{{ 'Category'|trans }}</option>
+            <option value='id' {{ App.Request.query.get('order') == 'id' ? 'selected' }}>{{ 'Id'|trans }}</option>
+            <option value='date' {{ App.Request.query.get('order') == 'date' ? 'selected' }}>{{ 'Date'|trans }}</option>
+            {% if Entity.type == 'database' %}
+                <option value='rating' {{ App.Request.query.get('order') == 'rating' ? 'selected' }}>{{ 'Rating'|trans }}</option>
+            {% else %}
+                <option value='comment' {{ App.Request.query.get('order') == 'comment' ? 'selected' }}>{{ 'Comment'|trans }}</option>
+            {% endif %}
+            <option value='title' {{ App.Request.query.get('order') == 'title' ? 'selected' }}>{{ 'Title'|trans }}</option>
+            <option value='user' {{ App.Request.query.get('order') == 'user' ? 'selected' }}>{{ 'User'|trans }}</option>
+        </select>
+
+        <!-- SORT -->
+        <select name='sort' class='form-control select-sort' aria-label='Sort by'>
+            <option value=''>{{ 'Sort'|trans }}</option>
+            <option value='desc' {{ App.Request.query.get('sort') == 'desc' ? 'selected' }}>{{ 'DESC'|trans }}</option>
+            <option value='asc' {{ App.Request.query.get('sort') == 'asc' ? 'selected' }}>{{ 'ASC'|trans }}</option>
+        </select>
+
+        <!-- LIMIT -->
+        <select autocomplete='off' name='limit' id='select-limit' class='form-control' aria-label='Number of results shown'>
+          <option value=''>{{ 'Results per page'|trans }}</option>
+          {% for option in limitOptions(limit) %}
+          <option {{ option == limit ? 'selected' }} value='{{ option }}'>{{ option }}</option>
+          {% endfor %}
+        </select>
+
+      </div>
+    </form>
+  </div>
+
+  <!-- RIGHT MENU: CREATE NEW -->
+  {% if not App.Session.get('anon') %}
+  <div class='col-md-2'>
+    <div class='btn-group align_right'>
+      <div class='btn-group dropleft' role='group'>
+        <button type='button' class='btn btn btn-primary dropdown-toggle dropdown-toggle-split' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
+          <span class='sr-only'>Toggle create new menu</span>
+        </button>
+        <ul class='dropdown-menu' aria-label='Create new'>
+          {% if Entity.type == 'experiments' %}
+            <a href='?create=true'><li class='dropdown-item'>
+              {% trans %}
+              Experiment
+              {% plural 1 %}
+              Experiments
+              {% endtrans %}
+            </li></a>
+            <div class='dropdown-divider'></div>
+            {% if templatesArr|length > 0 %}
+            <h6 class='dropdown-header'>{{ 'Templates'|trans }}</h6>
+                {% for tpl in templatesArr %}
+                    <a href='?create=true&tpl={{ tpl.id }}'>
+                    <li class='dropdown-item'>
+                        {{ tpl.name|raw }}
+                    </li></a>
+                {% endfor %}
+            {% else %}
+            <h6 class='dropdown-header'>{{ 'No templates found'|trans }}</h6>
+            {% endif %}
+            <div class='dropdown-divider'></div>
+                <a href='ucp.php?tab=3'>
+                    <li class='dropdown-item'>{{ 'Manage templates'|trans }}</li>
+                </a>
+          {% else %}
+              {% for category in categoryArr %}
+                  <a href='?create=true&tpl={{ category.category_id }}'>
+                      <li style='color:#{{ category.color }}' class='dropdown-item'>{{ category.category }}</li>
+                  </a>
+              {% endfor %}
+          {% endif %}
+        </ul>
+      </div>
+      <button type='button' class='btn btn-primary createNew'>{{ 'Create'|trans }}</button>
+    </div>
+  </div>
+{% endif %}
 </div>
 <hr>
 
@@ -120,7 +146,7 @@
             results shown
         {% endtrans %}
       {% endif %}
-      <a href='#' id='selectAllBoxes'>{{ 'Select all'|trans }}</a>
+      <a href='#' id='expandAll' data-status='closed' data-expand='{{ 'Expand all'|trans }}' data-collapse='{{ 'Collapse all'|trans }}'>{{ 'Expand all'|trans }}</a> - <a href='#' id='selectAllBoxes'>{{ 'Select all'|trans }}</a>
       <span id='advancedSelectOptions' style='display:none'> - <a href='#' id='unselectAllBoxes'>{{ 'Clear selection'|trans }}</a> -
         <a href='#' id='invertSelection'>{{ 'Invert selection'|trans }}</a></span>
     </p>
@@ -141,19 +167,17 @@
             {% endfor %}
         </select>
 
-        {% if Entity.type == 'experiments' %}
         <select autocomplete='off' id='visChecked'>
-            <option selected disabled>{{ 'Change visibility'|trans }}</option>
-            {% for key, value in visibilityArr %}
-                <option value='{{ key }}'>{{ value }}</option>
-            {% endfor %}
+          <option selected disabled>{{ 'Change visibility'|trans }}</option>
+          {% for key, value in visibilityArr %}
+            <option value='{{ key }}'>{{ value }}</option>
+          {% endfor %}
         </select>
-        {% endif %}
 
     {% endif %}
-        <button data-what = 'zip' class='button csvzip'>{{ 'Make Zip'|trans }}</button>
-        <button data-what='csv' class='button csvzip'>{{ 'Make Csv'|trans }}</button>
-        <button id='deleteChecked' class='button button-delete'>{{ 'Delete'|trans }}</button>
+        <button data-what = 'zip' class='button btn btn-primary csvzip'>{{ 'Make Zip'|trans }}</button>
+        <button data-what='csv' class='button btn btn-primary csvzip'>{{ 'Make Csv'|trans }}</button>
+        <button id='deleteChecked' class='button btn btn-danger'>{{ 'Delete'|trans }}</button>
     </p>
     <div class='row display-flex'>
     {% for item in itemsArr|slice(0, limit) %}
@@ -169,7 +193,7 @@
       {% else %}
         <div class='col-xs-12 col-sm-6 col-md-6 col-lg-4'>
       {% endif %}
-      <section class='item' id='parent_{{ item.id }}' style='opacity:{{ opacity }}; border-left: 6px solid #{{ item.color }}'>
+      <section class='item item-show item-show-{{ App.Users.userData.display_size }} {{ loop.last ? 'item-show-last' }}' id='parent_{{ item.id }}' style='opacity:{{ opacity }}; border-left: 6px solid #{{ item.color }}'>
 
           <p class='title'>
           {% if item.locked %}
@@ -181,21 +205,21 @@
           {% if item.next_step|length > 0 %}
               {% set stepsArr = item.next_step|split('|') %}
               {% set next = stepsArr|first %}
-              <p style='padding-left:20px'>
-              {{ 'Next step'|trans }}: <span style='color:black'>{{ next|raw }}</span>
+              <p class='item-next'>
+              {{ 'Next step'|trans }}: <span class='item-next-step'>{{ next|raw }}</span>
               </p>
           {% endif %}
 
           <div data-type='{{ Entity.type }}' id='bodyToggleImg_{{ item.id }}' class='bodyToggleImg clickable'>
               <i class='align_right fas fa-plus-circle mr-1' title='Show more'></i>
           </div>
-          <p style='padding-left:20px; margin-bottom: 5px'>
-              <input type='checkbox' data-id='{{ item.id }}' data-type='{{ Entity.type }}' autocomplete='off' style='width:15px;vertical-align:-3px;' />
+          <p class='item-info'>
+              <input class='item-checkbox' type='checkbox' data-id='{{ item.id }}' data-type='{{ Entity.type }}' autocomplete='off' aria-label='Select' style='width:15px;vertical-align:-3px;' />
           {% if not item.locked and (item.userid == App.Users.userData.userid or Entity.type == 'items' or App.Session.get('is_admin')) %}
-          <a href='{{ Entity.page }}.php?mode=edit&id={{ item.id }}'><i class='fas fa-pencil-alt clickable pseudo-link'></i></a>
+          <a href='{{ Entity.page }}.php?mode=edit&id={{ item.id }}'><i class='fas fa-pencil-alt clickable link-like'></i></a>
           {% endif %}
-          <span style='text-transform:uppercase;font-size:80%;color:#{{ item.color }}'>{{ item.category }}</span>
-          <span class='date'><i class='far fa-calendar-alt mr-1'></i>{{ item.date|kdate }}</span>
+          <span class='item-category' style='color:#{{ item.color }}'>{{ item.category }}</span>
+          <span class='item-date'><i class='far fa-calendar-alt mr-1'></i>{{ item.date|kdate }}</span>
           {% if item.timestamped %}
               <i class='far fa-calendar-check'></i>
           {% endif %}
@@ -231,12 +255,12 @@
     </div>
 
     {% if not searchPage %}
-        <div class='text-center'>
+        <div class='text-center pageButtons'>
             {% if offset != 0 %}
-                <button class='button button-neutral previousPage'>{{ 'Previous page'|trans }}</button>
+                <button class='button btn btn-neutral previousPage'>{{ 'Previous page'|trans }}</button>
             {% endif %}
             {% if limit < Entity.itemsReadNb %}
-                <button class='button nextPage'>{{ 'Next page'|trans }}</button>
+                <button class='button btn btn-primary mt-2 nextPage'>{{ 'Next page'|trans }}</button>
             {% endif %}
         </div>
   {% endif %}
@@ -245,16 +269,12 @@
 
 <div id='shortcuts' data-create='{{ Entity.Users.userData.sc_create }}'></div>
 <div id='info'
+    data-locale='{{ App.Users.userData.lang }}'
     data-limit='{{ limit }}'
     data-offset='{{ offset }}'
     data-confirm="{{ 'The selected item(s) and all associated data will be permanently deleted. This cannot be undone. Are you sure?'|trans }}">
 </div>
 <div id='type' data-type='{{ Entity.type }}'></div>
 
-{% if App.Config.configArr.debug %}
-    <script src='app/js/src/show.js?v={{ v }}'></script>
-{% else %}
-    <script src='app/js/show.min.js?v={{ v }}'></script>
-{% endif %}
-
+<script src='app/js/show.bundle.js?v={{ v }}'></script>
 {% endblock body %}

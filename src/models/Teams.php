@@ -13,10 +13,10 @@ namespace Elabftw\Models;
 use Defuse\Crypto\Crypto;
 use Defuse\Crypto\Key;
 use Elabftw\Elabftw\Db;
-use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\CrudInterface;
 use Elabftw\Services\Filter;
+use Elabftw\Services\UsersHelper;
 use PDO;
 
 /**
@@ -52,41 +52,118 @@ class Teams implements CrudInterface
         $sql = 'SELECT id FROM teams WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         return (bool) $req->fetch();
     }
 
     /**
-     * Check if the team exists already and create one if not
+     * Transform a team name/orgid in the team id
      *
-     * @param string $name Name of the team (case sensitive)
-     * @param bool $allowCreate depends on the value of saml_team_create in Config
-     * @return int The team ID
+     * @param string $query name or orgid of the team
+     * @return int
      */
-    public function initializeIfNeeded(string $name, bool $allowCreate): int
+    public function getTeamIdFromNameOrOrgid(string $query): int
     {
-        $sql = 'SELECT id, name, orgid FROM teams';
+        $sql = 'SELECT id FROM teams WHERE id = :query OR name = :query OR orgid = :query';
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':name', $name);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
+        $req->bindParam(':query', $query);
+        $this->Db->execute($req);
+        $res = $req->fetchColumn();
+        if ($res === false) {
+            throw new ImproperActionException('Could not find team!');
         }
-        $teamsArr = $req->fetchAll();
+        return (int) $res;
+    }
 
-        if (is_array($teamsArr)) {
-            foreach ($teamsArr as $team) {
-                if (($team['name'] === $name) || ($team['orgid'] === $name)) {
-                    return (int) $team['id'];
+    /**
+     * Make sure that all the teams are existing
+     * If they do not exist, create them if it's allowed by sysadmin
+     *
+     * @param array $teams
+     * @return array an array of teams id
+     */
+    public function validateTeams(array $teams): array
+    {
+        $Config = new Config();
+        $teamIdArr = array();
+        foreach ($teams as $team) {
+            try {
+                $teamIdArr[] = $this->getTeamIdFromNameOrOrgid($team);
+            } catch (ImproperActionException $e) {
+                if ($Config->configArr['saml_team_create']) {
+                    $teamIdArr[] = $this->create($team);
+                } else {
+                    throw new ImproperActionException('The administrator disabled team creation on SAML login. Contact your administrator for creating the team.');
                 }
             }
         }
+        return $teamIdArr;
+    }
 
-        if ($allowCreate) {
-            return $this->create($name);
+    /**
+     * Add one user to n teams
+     *
+     * @param int $userid
+     * @param array $teamIdArr this is the validated array of teams that exist coming from validateTeams
+     *
+     * @return void
+     */
+    public function addUserToTeams(int $userid, array $teamIdArr): void
+    {
+        foreach ($teamIdArr as $teamId) {
+            // don't add a second time
+            if ($this->isUserInTeam($userid, (int) $teamId)) {
+                break;
+            }
+            $sql = 'INSERT INTO users2teams (`users_id`, `teams_id`) VALUES (:userid, :team);';
+            $req = $this->Db->prepare($sql);
+            $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+            $req->bindParam(':team', $teamId, PDO::PARAM_INT);
+            $this->Db->execute($req);
         }
-        throw new ImproperActionException('The administrator disabled team creation on SAML login. Contact your administrator for creating the team.');
+    }
+
+    /**
+     * Remove a user from teams
+     *
+     * @param int $userid
+     * @param array $teamIdArr this is the validated array of teams that exist coming from validateTeams
+     *
+     * @return void
+     */
+    public function rmUserFromTeams(int $userid, array $teamIdArr): void
+    {
+        foreach ($teamIdArr as $teamId) {
+            $sql = 'DELETE FROM users2teams WHERE `users_id` = :userid AND `teams_id` = :team';
+            $req = $this->Db->prepare($sql);
+            $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+            $req->bindParam(':team', $teamId, PDO::PARAM_INT);
+            $this->Db->execute($req);
+        }
+    }
+
+    /**
+     * When the user logs in, make sure that the teams they are part of
+     * are the same teams than the one sent by the IDP
+     *
+     * @param int $userid
+     * @param array $teams
+     *
+     * @return void
+     */
+    public function syncFromIdp(int $userid, array $teams): void
+    {
+        $teamIdArr = $this->validateTeams($teams);
+        // get the difference between the teams sent by idp
+        // and the teams that the user is in
+        $UsersHelper = new UsersHelper();
+        $currentTeams = $UsersHelper->getTeamsIdFromUserid($userid);
+
+        $addToTeams = \array_diff($teamIdArr, $currentTeams);
+        $rmFromTeams =\array_diff($currentTeams, $teamIdArr);
+
+        $this->rmUserFromTeams($userid, $rmFromTeams);
+        $this->addUserToTeams($userid, $addToTeams);
     }
 
     /**
@@ -105,9 +182,7 @@ class Teams implements CrudInterface
         $req->bindParam(':name', $name);
         $req->bindValue(':link_name', 'Documentation');
         $req->bindValue(':link_href', 'https://doc.elabftw.net');
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
         // grab the team ID
         $newId = $this->Db->lastInsertId();
 
@@ -142,9 +217,7 @@ class Teams implements CrudInterface
         $sql = 'SELECT * FROM `teams` WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Users->userData['team'], PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
 
         $res = $req->fetch();
         if ($res === false) {
@@ -163,9 +236,7 @@ class Teams implements CrudInterface
     {
         $sql = 'SELECT * FROM teams ORDER BY name ASC';
         $req = $this->Db->prepare($sql);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
 
         $res = $req->fetchAll();
         if ($res === false) {
@@ -241,9 +312,7 @@ class Teams implements CrudInterface
         $req->bindParam(':stampcert', $post['stampcert']);
         $req->bindParam(':id', $this->Users->userData['team'], PDO::PARAM_INT);
 
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -267,10 +336,7 @@ class Teams implements CrudInterface
         $req->bindParam(':name', $name);
         $req->bindParam(':orgid', $orgid);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
-
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -292,9 +358,7 @@ class Teams implements CrudInterface
         $sql = 'DELETE FROM teams WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $id, PDO::PARAM_INT);
-        if ($req->execute() !== true) {
-            throw new DatabaseErrorException('Error while executing SQL query.');
-        }
+        $this->Db->execute($req);
     }
 
     /**
@@ -308,7 +372,7 @@ class Teams implements CrudInterface
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Users->userData['team'], PDO::PARAM_INT);
 
-        return $req->execute();
+        return $this->Db->execute($req);
     }
 
     /**
@@ -325,7 +389,7 @@ class Teams implements CrudInterface
         (SELECT COUNT(experiments.id) FROM experiments) AS totxp,
         (SELECT COUNT(experiments.id) FROM experiments WHERE experiments.timestamped = 1) AS totxpts';
         $req = $this->Db->prepare($sql);
-        $req->execute();
+        $this->Db->execute($req);
 
         return $req->fetch(PDO::FETCH_NAMED);
     }
@@ -339,15 +403,37 @@ class Teams implements CrudInterface
     public function getStats(int $team): array
     {
         $sql = 'SELECT
-        (SELECT COUNT(users.userid) FROM users WHERE users.team = :team) AS totusers,
+        (SELECT COUNT(users.userid) FROM users CROSS JOIN users2teams ON (users2teams.users_id = users.userid) WHERE users2teams.teams_id = :team) AS totusers,
         (SELECT COUNT(items.id) FROM items WHERE items.team = :team) AS totdb,
-        (SELECT COUNT(experiments.id) FROM experiments WHERE experiments.team = :team) AS totxp,
-        (SELECT COUNT(experiments.id) FROM experiments
-            WHERE experiments.team = :team AND experiments.timestamped = 1) AS totxpts';
+        (SELECT COUNT(experiments.id) FROM experiments LEFT JOIN users ON (experiments.userid = users.userid) CROSS JOIN users2teams ON (users2teams.users_id = users.userid) WHERE users2teams.teams_id = :team) AS totxp,
+        (SELECT COUNT(experiments.id) FROM experiments LEFT JOIN users ON (experiments.userid = users.userid) CROSS JOIN users2teams ON (users2teams.users_id = users.userid) WHERE users2teams.teams_id = :team AND experiments.timestamped = 1) AS totxpts';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':team', $team, PDO::PARAM_INT);
-        $req->execute();
+        $this->Db->execute($req);
 
         return $req->fetch(PDO::FETCH_NAMED);
+    }
+
+    // Check if two users have at least one team in common
+    public function hasCommonTeam(int $useridA, int $useridB): bool
+    {
+        $UsersHelper = new UsersHelper();
+        $teamsA = $UsersHelper->getTeamsIdFromUserid($useridA);
+        $teamsB = $UsersHelper->getTeamsIdFromUserid($useridB);
+        if (\count(\array_intersect($teamsA, $teamsB)) > 0) {
+            return true;
+        }
+        return false;
+    }
+
+    public function isUserInTeam(int $userid, int $team): bool
+    {
+        $sql = 'SELECT `users_id` FROM `users2teams` WHERE `teams_id` = :team AND `users_id` = :userid';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $req->bindParam(':team', $team, PDO::PARAM_INT);
+        $this->Db->execute($req);
+
+        return (bool) $req->fetchColumn();
     }
 }

@@ -15,6 +15,7 @@ use Elabftw\Exceptions\FilesystemErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\InvalidCsrfTokenException;
+use Elabftw\Exceptions\UnauthorizedException;
 use Elabftw\Models\ApiKeys;
 use Elabftw\Models\Database;
 use Elabftw\Models\Experiments;
@@ -71,7 +72,20 @@ try {
         $uploads = $Entity->Uploads->readAll();
         $Response->setData($uploads);
     }
-} catch (ImproperActionException | InvalidCsrfTokenException $e) {
+
+    // GET USER TEMPLATES
+    if ($Request->query->has('getUserTpl')) {
+        $Templates = new Templates($App->Users);
+        $userTemplates = $Templates->readAll();
+        $res = array();
+
+        foreach ($userTemplates as $template) {
+            $res[] = array('title' => $template['name'], 'description' => '', 'content' => $template['body']);
+        }
+
+        $Response->setData($res);
+    }
+} catch (ImproperActionException | InvalidCsrfTokenException | UnauthorizedException $e) {
     $Response->setData(array(
         'res' => false,
         'msg' => $e->getMessage(),
