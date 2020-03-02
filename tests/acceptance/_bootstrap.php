@@ -13,12 +13,12 @@
 function testLogin($I)
 {
     // if snapshot exists -> skip login
-    if ($I->loadSessionSnapshot('login')) {
+    if ($I->amOnPage('/') && $I->loadSessionSnapshot('login')) {
         return;
     }
     // logging in
     $I->amOnPage('/login.php');
-    $I->submitForm('#login', array('email' => 'toto@yopmail.com', 'password' => 'phpunitftw'));
+    $I->submitForm('#login', array('email' => 'phpunit@example.com', 'password' => 'phpunitftw'));
     // saving snapshot
     $I->saveSessionSnapshot('login');
 }

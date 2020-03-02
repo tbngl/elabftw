@@ -55,7 +55,7 @@ class Experiments extends AbstractEntity implements CreateInterface
         }
 
         $canread = 'team';
-        $canwrite = 'team';
+        $canwrite = 'user';
         if ($this->Users->userData['default_read'] !== null) {
             $canread = $this->Users->userData['default_read'];
         }
@@ -64,8 +64,8 @@ class Experiments extends AbstractEntity implements CreateInterface
         }
 
         // SQL for create experiments
-        $sql = 'INSERT INTO experiments(title, date, body, category, elabid, canread, canwrite, userid)
-            VALUES(:title, :date, :body, :category, :elabid, :canread, :canwrite, :userid)';
+        $sql = 'INSERT INTO experiments(title, date, body, category, elabid, canread, canwrite, datetime, userid)
+            VALUES(:title, :date, :body, :category, :elabid, :canread, :canwrite, NOW(), :userid)';
         $req = $this->Db->prepare($sql);
         $this->Db->execute($req, array(
             'title' => $title,
@@ -172,8 +172,8 @@ class Experiments extends AbstractEntity implements CreateInterface
         // capital i looks good enough
         $title = $this->entityData['title'] . ' I';
 
-        $sql = 'INSERT INTO experiments(title, date, body, category, elabid, canread, canwrite, userid)
-            VALUES(:title, :date, :body, :category, :elabid, :canread, :canwrite, :userid)';
+        $sql = 'INSERT INTO experiments(title, date, body, category, elabid, canread, canwrite, datetime, userid)
+            VALUES(:title, :date, :body, :category, :elabid, :canread, :canwrite, NOW(), :userid)';
         $req = $this->Db->prepare($sql);
         $this->Db->execute($req, array(
             'title' => $title,

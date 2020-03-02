@@ -80,6 +80,8 @@ CREATE TABLE `config` (
 
 --
 -- Table structure for table `experiments`
+-- Here the datetime column cannot have current_timestamp on update because
+-- of the way the code is in MySQL. It is fixed in 5.6 but we still target 5.5
 --
 
 CREATE TABLE `experiments` (
@@ -99,7 +101,7 @@ CREATE TABLE `experiments` (
   `timestampedwhen` timestamp NULL DEFAULT NULL,
   `canread` varchar(255) NOT NULL DEFAULT 'team',
   `canwrite` varchar(255) NOT NULL DEFAULT 'user',
-  `datetime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `datetime` timestamp NOT NULL,
   `lastchange` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -555,7 +557,7 @@ CREATE TABLE `users` (
   `lang` varchar(5) NOT NULL DEFAULT 'en_GB',
   `api_key` varchar(255) DEFAULT NULL,
   `default_read` varchar(255) NULL DEFAULT 'team',
-  `default_write` varchar(255) NULL DEFAULT 'team',
+  `default_write` varchar(255) NULL DEFAULT 'user',
   `single_column_layout` tinyint(1) NOT NULL DEFAULT '0',
   `cjk_fonts` tinyint(1) NOT NULL DEFAULT '0',
   `orderby` varchar(255) DEFAULT NULL,

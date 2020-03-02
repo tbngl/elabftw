@@ -27,11 +27,11 @@ sudo chmod +r config.php
 docker-compose -f tests/docker-compose.yml up -d
 # give some time for the mysql process to start
 echo "Waiting for MySQL to start..."
-sleep 10
+sleep 20
 # install the database
 docker exec -it elabtmp bin/install start
 # populate the database
-docker exec -it elabtmp bin/console dev:populate -vv -p phpunitftw -m phpunit@example.com -u phpunit -s phpunit -y
+docker exec -it elabtmp bin/console dev:populate tests/populate-config.yml
 # run tests
 docker exec -it elabtmp php vendor/bin/codecept run
 # all tests succeeded, display a koala
