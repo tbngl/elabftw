@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Elabftw\Elabftw;
 
 use Elabftw\Models\Config;
+use function filter_var;
 use InvalidArgumentException;
 use League\CommonMark\CommonMarkConverter;
 use Symfony\Component\HttpFoundation\Request;
@@ -354,5 +355,27 @@ class Tools
         }
         array_splice($limits, $place, 0, array($input));
         return $limits;
+    }
+
+    /**
+     * Transform a query object in a query string
+     *
+     * @param array $query the query array given by Request
+     * @return string
+     */
+    public static function qFilter(array $query): string
+    {
+        $res = '';
+        foreach ($query as $key => $value) {
+            // tags for instance are arrays
+            if ($key === 'tags') {
+                foreach ($value as $tag) {
+                    $res .= '&tags[]=' . $tag;
+                }
+            } else {
+                $res .= '&' . $key . '=' . $value;
+            }
+        }
+        return filter_var($res, FILTER_SANITIZE_STRING);
     }
 }

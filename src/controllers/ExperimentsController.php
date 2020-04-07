@@ -185,7 +185,7 @@ class ExperimentsController extends AbstractEntityController
 
         if ($order === 'cat') {
             $this->Entity->order = 'status.id';
-        } elseif ($order === 'date' || $order === 'rating' || $order === 'title' || $order === 'id') {
+        } elseif ($order === 'date' || $order === 'rating' || $order === 'title' || $order === 'id' || $order === 'lastchange') {
             $this->Entity->order = 'experiments.' . $order;
         } elseif ($order === 'comment') {
             $this->Entity->order = 'experiments_comments.recent_comment';
@@ -248,6 +248,9 @@ class ExperimentsController extends AbstractEntityController
 
             $itemsArr = $this->Entity->read($getTags);
         }
+
+        // store the query parameters in the Session
+        $this->App->Session->set('lastquery', $this->App->Request->query->all());
 
         $template = 'show.html';
 
