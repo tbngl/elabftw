@@ -19,6 +19,7 @@ use Elabftw\Services\Check;
 use Elabftw\Services\Email;
 use Elabftw\Services\Filter;
 use Elabftw\Traits\EntityTrait;
+use function explode;
 use PDO;
 
 /**
@@ -433,15 +434,16 @@ abstract class AbstractEntity
     }
 
     /**
-     * Set a limit for sql read. The limit is two times the wanted number of
+     * Set a limit for sql read. The limit is n times the wanted number of
      * displayed results so we can remove the ones without read access
+     * and still display enough of them
      *
      * @param int $num number of items to ignore
      * @return void
      */
     public function setLimit(int $num): void
     {
-        $num *= 2;
+        $num *= 10;
         $this->limit = 'LIMIT ' . (string) $num;
     }
 
@@ -687,7 +689,7 @@ abstract class AbstractEntity
         if ($period === '') {
             $period = '15000101-30000101';
         }
-        list($from, $to) = \explode('-', $period);
+        list($from, $to) = explode('-', $period);
         $sql = 'SELECT id FROM ' . $this->type . ' WHERE userid = :userid AND lastchange BETWEEN :from AND :to';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':userid', $userid, PDO::PARAM_INT);
