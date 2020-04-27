@@ -122,7 +122,7 @@ class Status extends AbstractCategory
         if ($res === false || $res === null) {
             return '00FF00';
         }
-        return $res;
+        return (string) $res;
     }
 
     /**
@@ -157,7 +157,7 @@ class Status extends AbstractCategory
         $color = Check::color($color);
 
         $default = 0;
-        if ($isDefault) {
+        if ($isDefault !== 0) {
             $this->setDefaultFalse();
             $default = 1;
         }
@@ -205,7 +205,6 @@ class Status extends AbstractCategory
      */
     public function destroyAll(): void
     {
-        return;
     }
 
     /**

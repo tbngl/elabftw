@@ -86,12 +86,14 @@ class Users
         $Teams = new Teams($this);
         $UsersHelper = new UsersHelper();
 
+        // validate teams
+        $Teams->validateTeams($teams);
         // check for duplicate of email
         if ($this->isDuplicateEmail($email)) {
             throw new ImproperActionException(_('Someone is already using that email address!'));
         }
 
-        if ($password) {
+        if ($password !== '') {
             Check::passwordLength($password);
         }
 

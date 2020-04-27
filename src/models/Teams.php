@@ -94,7 +94,7 @@ class Teams implements CrudInterface
                 if ($Config->configArr['saml_team_create']) {
                     $teamIdArr[] = $this->create($team);
                 } else {
-                    throw new ImproperActionException('The administrator disabled team creation on SAML login. Contact your administrator for creating the team.');
+                    throw new ImproperActionException('The administrator disabled team creation on SAML login. Contact your administrator for creating the team.', (int) $e->getCode(), $e);
                 }
             }
         }
@@ -168,8 +168,8 @@ class Teams implements CrudInterface
         $addToTeams = array_diff($teamIdArr, $currentTeams);
         $rmFromTeams = array_diff($currentTeams, $teamIdArr);
 
-        $this->rmUserFromTeams($userid, $rmFromTeams);
         $this->addUserToTeams($userid, $addToTeams);
+        $this->rmUserFromTeams($userid, $rmFromTeams);
     }
 
     /**
@@ -397,7 +397,12 @@ class Teams implements CrudInterface
         $req = $this->Db->prepare($sql);
         $this->Db->execute($req);
 
-        return $req->fetch(PDO::FETCH_NAMED);
+        $res = $req->fetch(PDO::FETCH_NAMED);
+        if ($res === false) {
+            return array();
+        }
+
+        return $res;
     }
 
     /**
@@ -417,7 +422,12 @@ class Teams implements CrudInterface
         $req->bindParam(':team', $team, PDO::PARAM_INT);
         $this->Db->execute($req);
 
-        return $req->fetch(PDO::FETCH_NAMED);
+        $res = $req->fetch(PDO::FETCH_NAMED);
+        if ($res === false) {
+            return array();
+        }
+
+        return $res;
     }
 
     public function hasCommonTeamWithCurrent(int $userid, int $team): bool

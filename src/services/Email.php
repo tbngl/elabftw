@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 namespace Elabftw\Services;
 
+use function count;
 use Defuse\Crypto\Crypto;
 use Defuse\Crypto\Key;
 use Elabftw\Elabftw\Db;
@@ -198,7 +199,8 @@ class Email
      * Fetch the email(s) of the admin(s) for a team
      *
      * @param int $team
-     * @return array
+     *
+     * @return scalar[]
      */
     private function getAdminEmail($team): array
     {
@@ -214,11 +216,11 @@ class Email
         $req->execute();
 
         while ($email = $req->fetchColumn()) {
-            $arr[] = $email;
+            $arr[] = (string) $email;
         }
 
         // if we have only one admin, we need to have an associative array
-        if (\count($arr) === 1) {
+        if (count($arr) === 1) {
             return array($arr[0] => 'Admin eLabFTW');
         }
 

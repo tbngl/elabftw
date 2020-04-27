@@ -130,7 +130,6 @@ class Revisions implements CrudInterface
      */
     public function destroy(int $id): void
     {
-        return;
     }
 
     /**
@@ -150,7 +149,7 @@ class Revisions implements CrudInterface
         if ($res === false || $res === null) {
             return '';
         }
-        return $res;
+        return (string) $res;
     }
 
     /**

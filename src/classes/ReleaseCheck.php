@@ -20,7 +20,7 @@ use GuzzleHttp\Exception\RequestException;
 class ReleaseCheck
 {
     /** @var string INSTALLED_VERSION the current version of elabftw */
-    public const INSTALLED_VERSION = '3.4.8';
+    public const INSTALLED_VERSION = '3.4.9';
 
     /** @var string $URL this file contains the latest version information */
     private const URL = 'https://get.elabftw.net/updates.ini';
@@ -65,7 +65,7 @@ class ReleaseCheck
             try {
                 $response = $this->get(self::URL_HTTP);
             } catch (RequestException $e) {
-                throw new ReleaseCheckException('Could not make request to server!');
+                throw new ReleaseCheckException('Could not make request to server!', (int) $e->getCode(), $e);
             }
         }
 

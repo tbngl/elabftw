@@ -73,7 +73,7 @@ class Uploads implements CrudInterface
     {
         $this->Entity->canOrExplode('write');
 
-        $realName = $this->getSanitizedName($request->files->get('file')->getClientOriginalName());
+        $realName = Filter::forFilesystem($request->files->get('file')->getClientOriginalName());
         $this->checkExtension($realName);
         $ext = Tools::getExt($realName);
 
@@ -309,10 +309,8 @@ class Uploads implements CrudInterface
         }
         // now delete file from filesystem
         $filePath = $this->getUploadsPath() . $uploadArr['long_name'];
-        if (file_exists($filePath)) {
-            if (unlink($filePath) !== true) {
-                throw new FilesystemErrorException('Could not delete file!');
-            }
+        if (file_exists($filePath) && unlink($filePath) !== true) {
+            throw new FilesystemErrorException('Could not delete file!');
         }
 
         // Delete SQL entry (and verify the type)
@@ -361,18 +359,6 @@ class Uploads implements CrudInterface
             default:
                 return 0;
         }
-    }
-
-    /**
-     * Create a clean filename
-     * Remplace all non letters/numbers by '.' (this way we don't lose the file extension)
-     *
-     * @param string $rawName The name of the file as it was on the user's computer
-     * @return string The cleaned filename
-     */
-    private function getSanitizedName(string $rawName): string
-    {
-        return Filter::forFilesystem($rawName) ?? 'file.data';
     }
 
     /**

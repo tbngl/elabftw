@@ -31,6 +31,23 @@ import 'tinymce/plugins/template';
 import 'tinymce/themes/silver';
 import 'tinymce/themes/mobile';
 import './doodle';
+import '../js/tinymce-langs/ca_ES.js';
+import '../js/tinymce-langs/de_DE.js';
+import '../js/tinymce-langs/en_GB.js';
+import '../js/tinymce-langs/es_ES.js';
+import '../js/tinymce-langs/fr_FR.js';
+import '../js/tinymce-langs/id_ID.js';
+import '../js/tinymce-langs/it_IT.js';
+import '../js/tinymce-langs/ja_JP.js';
+import '../js/tinymce-langs/ko_KR.js';
+import '../js/tinymce-langs/nl_BE.js';
+import '../js/tinymce-langs/pl_PL.js';
+import '../js/tinymce-langs/pt_BR.js';
+import '../js/tinymce-langs/pt_PT.js';
+import '../js/tinymce-langs/ru_RU.js';
+import '../js/tinymce-langs/sk_SK.js';
+import '../js/tinymce-langs/sl_SI.js';
+import '../js/tinymce-langs/zh_CN.js';
 const Dropzone= require('dropzone/dist/dropzone-amd-module'); // eslint-disable-line @typescript-eslint/no-var-requires
 
 $.ajaxSetup({
@@ -45,7 +62,7 @@ Dropzone.options.elabftwDropzone = {
   // i18n message to user
   dictDefaultMessage: $('#info').data('upmsg'),
   maxFilesize: $('#info').data('maxsize'), // MB
-  timeout: 300000,
+  timeout: 900000,
   headers: {
     'X-CSRF-Token': $('meta[name="csrf-token"]').attr('content')
   },
@@ -364,7 +381,6 @@ $(document).ready(function() {
       {text: 'CSS', value: 'css'},
       {text: 'Fortran', value: 'fortran'},
       {text: 'Go', value: 'go'},
-      {text: 'HTML/XML', value: 'markup'},
       {text: 'Java', value: 'java'},
       {text: 'JavaScript', value: 'javascript'},
       {text: 'Julia', value: 'julia'},
