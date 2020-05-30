@@ -1533,10 +1533,9 @@ apidoc-core@^0.11.1:
     lodash "~4.17.15"
     semver "~6.3.0"
 
-apidoc@0.22.*:
-  version "0.22.1"
-  resolved "https://registry.yarnpkg.com/apidoc/-/apidoc-0.22.1.tgz#4f7e986430ebb7c6a4785bc857284bd43e030acc"
-  integrity sha512-A8zasxrS7RlUkwakeLKVEgp6jgPDQmX8PLt5PGp8J4wfSwZU4xcG2+nb7IaZ5qd7sLWusG75SLLqXIMcII9Jiw==
+apidoc@apidoc/apidoc#master:
+  version "0.23.0"
+  resolved "https://codeload.github.com/apidoc/apidoc/tar.gz/b2501731de562fd07d0e87d9c8d561e0e92d157b"
   dependencies:
     apidoc-core "^0.11.1"
     commander "^2.20.0"
