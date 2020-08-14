@@ -26,6 +26,8 @@ $App->pageTitle = _('Register');
 $Response = new Response();
 $Response->prepare($Request);
 
+$template = 'error.html';
+$renderArr = array();
 try {
     // DEMO BLOCK
     $message ="Thank you for trying eLabFTW. This is a demo. This is not a webservice: you need <a style='color:blue;' href='https://doc.elabftw.net'>to install it</a> on a server!";
@@ -45,8 +47,7 @@ try {
         throw new ImproperActionException(_('No local account creation is allowed!'));
     }
 
-    $Teams = new Teams($App->Users);
-    $teamsArr = $Teams->readAll();
+    $teamsArr = (new Teams($App->Users))->readAll();
 
     $template = 'register.html';
     $renderArr = array(
@@ -55,16 +56,11 @@ try {
         'hideTitle' => true,
     );
 } catch (ImproperActionException $e) {
-    $template = 'error.html';
-    $renderArr = array('error' => $e->getMessage());
-    $Response = new Response();
-    $Response->prepare($Request);
-    $Response->setContent($App->render($template, $renderArr));
+    $renderArr['error'] = $e->getMessage();
 } catch (Exception $e) {
     // log error and show general error message
     $App->Log->error('', array('Exception' => $e));
-    $template = 'error.html';
-    $renderArr = array('error' => Tools::error());
+    $renderArr['error'] = Tools::error();
 } finally {
     $Response->setContent($App->render($template, $renderArr));
     $Response->send();
