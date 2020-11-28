@@ -35,7 +35,7 @@ try {
     throw new ImproperActionException($message);
     // END DEMO BLOCK
     // Check if we're logged in
-    if ($Session->has('auth') || $Session->has('anon')) {
+    if ($App->Session->has('is_auth')) {
         throw new ImproperActionException(sprintf(
             _('Please %slogout%s before you register another account.'),
             "<a style='alert-link' href='app/logout.php'>",
