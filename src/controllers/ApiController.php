@@ -119,6 +119,9 @@ class ApiController implements ControllerInterface
                 if ($this->endpoint === 'events') {
                     return $this->getEvents();
                 }
+                if ($this->endpoint === 'tags') {
+                    return $this->getTags();
+                }
             }
 
 
@@ -205,7 +208,7 @@ class ApiController implements ControllerInterface
 
         // load Entity
         // if endpoint is uploads we don't actually care about the entity type
-        if ($this->endpoint === 'experiments' || $this->endpoint === 'uploads' || $this->endpoint === 'backupzip') {
+        if ($this->endpoint === 'experiments' || $this->endpoint === 'uploads' || $this->endpoint === 'backupzip' || $this->endpoint === 'tags') {
             $this->Entity = new Experiments($this->Users, $this->id);
         } elseif ($this->endpoint === 'items' || $this->endpoint === 'bookable') {
             $this->Entity = new Database($this->Users, $this->id);
@@ -327,7 +330,10 @@ class ApiController implements ControllerInterface
         if ($this->id === null) {
             $DisplayParams = new DisplayParams();
             $DisplayParams->adjust($this->App);
-            return new JsonResponse($this->Entity->readShow($DisplayParams, true));
+            // default DisplayParams is 16, crank it up to 9000
+            // in the future maybe use limit/offset/page query params
+            $DisplayParams->limit = 9000;
+            return new JsonResponse($this->Entity->readShow($DisplayParams, false));
         }
         $this->Entity->canOrExplode('read');
         // add the uploaded files
@@ -338,6 +344,29 @@ class ApiController implements ControllerInterface
         $this->Entity->entityData['steps'] = $this->Entity->Steps->read();
 
         return new JsonResponse($this->Entity->entityData);
+    }
+
+    /**
+     * @api {get} /tags Read tags
+     * @apiName GetTags
+     * @apiGroup Entity
+     * @apiDescription Read tags from the team
+     * @apiExample {python} Python example
+     * import elabapy
+     * manager = elabapy.Manager(endpoint="https://elab.example.org/api/v1/", token="3148")
+     * # get tags
+     * all_tags = manager.get_tags()
+     * print(json.dumps(all_tags, indent=4, sort_keys=True))
+     * @apiExample {shell} Curl example
+     * export TOKEN="3148"
+     * # get all experiments
+     * curl -H "Authorization: $TOKEN" https://elab.example.org/api/v1/tags
+     * @apiSuccess {String} tag Tag content
+     * @apiSuccess {Number} id Tag id
+     */
+    private function getTags(): Response
+    {
+        return new JsonResponse($this->Entity->Tags->readAll());
     }
 
     /**
