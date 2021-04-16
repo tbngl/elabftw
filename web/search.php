@@ -13,8 +13,8 @@ namespace Elabftw\Elabftw;
 use function count;
 use Elabftw\Controllers\SearchController;
 use Elabftw\Exceptions\ImproperActionException;
-use Elabftw\Models\Database;
 use Elabftw\Models\Experiments;
+use Elabftw\Models\Items;
 use Elabftw\Models\ItemsTypes;
 use Elabftw\Models\Status;
 use Elabftw\Models\Tags;
@@ -34,18 +34,18 @@ require_once 'app/init.inc.php';
 $App->pageTitle = _('Search');
 
 $Experiments = new Experiments($App->Users);
-$Database = new Database($App->Users);
+$Database = new Items($App->Users);
 $Tags = new Tags($Experiments);
 $tagsArr = $Tags->readAll();
 
-$itemsTypesArr = (new ItemsTypes($App->Users))->readAll();
-$categoryArr = $statusArr = (new Status($App->Users))->read();
+$itemsTypesArr = (new ItemsTypes($App->Users->team))->read(new ContentParams('', 'all'));
+$categoryArr = $statusArr = (new Status($App->Users->team))->read(new ContentParams());
 if ($Request->query->get('type') !== 'experiments') {
     $categoryArr = $itemsTypesArr;
 }
 
 $TeamGroups = new TeamGroups($App->Users);
-$teamGroupsArr = $TeamGroups->read();
+$teamGroupsArr = $TeamGroups->read(new ContentParams());
 
 $usersArr = $App->Users->readAllFromTeam();
 
@@ -62,12 +62,19 @@ if ($Request->query->get('type') === 'experiments') {
     $Entity = $Database;
 }
 
+// ARE WE STRICT?
+// strict mode means we don't add wildcard characters around the query
+$isStrict = false;
+if ($Request->query->get('strict') === 'on') {
+    $isStrict = true;
+}
+
 // TITLE
 $title = '';
 if ($Request->query->has('title') && !empty($Request->query->get('title'))) {
     $title = filter_var(trim($Request->query->get('title')), FILTER_SANITIZE_STRING);
     if ($title !== false) {
-        $Entity->titleFilter = Tools::getSearchSql($title, $andor, 'title', $Entity->type);
+        $Entity->titleFilter = Tools::getSearchSql($title, $andor, 'title', $isStrict);
     }
 }
 
@@ -76,7 +83,7 @@ $body = '';
 if ($Request->query->has('body') && !empty($Request->query->get('body'))) {
     $body = filter_var(trim($Request->query->get('body')), FILTER_SANITIZE_STRING);
     if ($body !== false) {
-        $Entity->bodyFilter = Tools::getSearchSql($body, $andor, 'body', $Entity->type);
+        $Entity->bodyFilter = Tools::getSearchSql($body, $andor, 'body', $isStrict);
     }
 }
 
