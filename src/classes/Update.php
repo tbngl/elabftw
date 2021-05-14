@@ -36,19 +36,13 @@ use function sha1;
 class Update
 {
     /** @var int REQUIRED_SCHEMA the current version of the database structure */
-    private const REQUIRED_SCHEMA = 57;
-
-    public Config $Config;
+    private const REQUIRED_SCHEMA = 58;
 
     private Db $Db;
 
-    private Sql $Sql;
-
-    public function __construct(Config $config, Sql $sql)
+    public function __construct(public Config $Config, private Sql $Sql)
     {
-        $this->Config = $config;
         $this->Db = Db::getConnection();
-        $this->Sql = $sql;
     }
 
     /**
@@ -147,8 +141,6 @@ class Update
     /**
      * Remove revision without corresponding experiment and add
      * missing constraints when users employed the structure.sql
-     *
-     * @return void
      */
     private function fixExperimentsRevisions(): void
     {
