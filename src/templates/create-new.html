@@ -2,8 +2,8 @@
 {% if not App.Session.get('is_anon') %}
   <div class='col-md-2'>
     <div class='btn-group align-right'>
-      <div class='btn-group dropleft' role='group'>
-        <button type='button' class='btn btn-primary dropdown-toggle dropdown-toggle-split' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
+      <div class='btn-group dropstart' role='group'>
+        <button type='button' class='btn btn-primary dropdown-toggle dropdown-toggle-split' data-bs-toggle='dropdown' aria-haspopup='true' aria-expanded='false'>
           <span class='sr-only'>{{ 'Toggle create new menu'|trans }}</span>
         </button>
         <div class='dropdown-menu' aria-label='{{ 'Create new'|trans }}'>
