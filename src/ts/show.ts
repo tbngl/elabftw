@@ -9,7 +9,7 @@ declare let key: any;
 declare let MathJax: any;
 import { getCheckedBoxes, insertParamAndReload, notif, reloadTagsAndLocks } from './misc';
 import { EntityType } from './interfaces';
-import 'bootstrap/js/src/modal.js';
+import Modal from 'bootstrap/js/dist/modal';
 import i18next from 'i18next';
 import EntityClass from './Entity.class';
 

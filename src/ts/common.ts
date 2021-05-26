@@ -7,8 +7,12 @@
  */
 import $ from 'jquery';
 import { Ajax } from './Ajax.class';
+import Alert from 'bootstrap/js/dist/alert';
+import BaseComponent from 'bootstrap/js/dist/base-component';
+import Button from 'bootstrap/js/dist/button';
+import Collapse from 'bootstrap/js/dist/collapse';
+import Dropdown from 'bootstrap/js/dist/dropdown';
 import 'bootstrap-select';
-import 'bootstrap/js/src/modal.js';
 import { relativeMoment, displayMolFiles, makeSortableGreatAgain } from './misc';
 import i18next from 'i18next';
 import EntityClass from './Entity.class';

@@ -36,10 +36,6 @@ module.exports = {
       './src/ts/show.ts',
       './src/ts/sysconfig.ts',
       './src/ts/change-pass.ts',
-      'bootstrap/js/src/alert.js',
-      'bootstrap/js/src/button.js',
-      'bootstrap/js/src/collapse.js',
-      'bootstrap/js/src/dropdown.js',
       './src/ts/fontawesome.ts',
       // mathjax config must be loaded before mathjax lib
       './web/app/js/src/mathjax-config.js',

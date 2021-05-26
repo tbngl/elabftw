@@ -6,7 +6,7 @@
     {% if not searchPage %}
       <form>
     {% endif %}
-    <div class='form-group form-inline'>
+    <div class='row row-cols-auto gx-0'>
       <input type='hidden' name='q' value='{{ DisplayParams.query }}' />
       {% if DisplayParams.searchType == 'related' %}
         <input type='hidden' name='related' value='{{ App.Request.query.get('related')|number_format }}' />
@@ -14,6 +14,7 @@
 
 
       <!-- CATEGORY -->
+      <div class='col'>
       <select name='cat' class='autosubmit mr-1 form-control select-filter-status' aria-label='Filter category'>
         <option value=''>{{ Entity.type == 'experiments' ? 'Filter status'|trans : 'Filter by type'|trans }}</option>
         {% for category in categoryArr %}
@@ -23,8 +24,10 @@
 
       </select>
       <input type='hidden' name='mode' value='show' />
+    </div>
 
       <!-- ORDER -->
+      <div class='col'>
       <select name='order' class='autosubmit mr-1 form-control select-order' aria-label='Order by'>
         <option value=''>{{ 'Order by'|trans }}</option>
         <option value='cat'{{ App.Request.query.get('order') == 'cat' ? ' selected' }}>{{ 'Category'|trans }}</option>
@@ -40,14 +43,18 @@
         <option value='user'{{ App.Request.query.get('order') == 'user' ? ' selected' }}>{{ 'User'|trans }}</option>
         <option value='rating'{{ App.Request.query.get('order') == 'rating' ? ' selected' }}>{{ 'Rating'|trans }}</option>
       </select>
+    </div>
 
       <!-- SORT -->
+      <div class='col'>
       <select name='sort' class='autosubmit mr-1 form-control select-sort' aria-label='Sort by'>
         <option value=''>{{ 'Sort'|trans }}</option>
         <option value='desc'{{ App.Request.query.get('sort') == 'desc' ? ' selected' }}>{{ 'DESC'|trans }}</option>
         <option value='asc'{{ App.Request.query.get('sort') == 'asc' ? ' selected' }}>{{ 'ASC'|trans }}</option>
       </select>
+    </div>
 
+      <div class='col'>
       <!-- LIMIT if there is nothing in the query params, take the user configured one -->
       {% set thelimit = App.Request.query.get('limit') %}
       {% if thelimit is empty %}
@@ -59,10 +66,12 @@
           <option{{ option == thelimit ? ' selected' }} value='{{ option }}'>{{ option }}</option>
         {% endfor %}
       </select>
+    </div>
 
+      <div class='col'>
       {% if not searchPage %}
         <!-- SEARCH WITH TAG -->
-        <select multiple name='tags[]' class='form-control mr-1 selectpicker' data-show-subtext='true' data-none-selected-text='{{ 'Tags'|trans }}' data-live-search='true' data-style='' data-style-base='form-control' data-showtick='true' data-actions-box='true'>
+        <select multiple name='tags[]' class='mr-1 selectpicker' data-show-subtext='true' data-none-selected-text='{{ 'Tags'|trans }}' data-live-search='true' data-style='' data-style-base='form-control' data-showtick='true' data-actions-box='true'>
           {% for tag in tagsArrForSelect %}
             <option value='{{ tag.tag }}'{{ tag.tag in App.Request.query.get('tags') ? ' selected' }}>{{ tag.tag|raw }}</option>
           {% endfor %}
@@ -70,6 +79,7 @@
         <!-- onBlur cannot work on bootstrap multiselect see https://stackoverflow.com/questions/42673800/bootstrap-multiselect-blur-event-not-triggering so add a button -->
         <button class='btn btn-primary'>{{ 'Go'|trans }}</button>
       {% endif %}
+    </div>
 
     </div>
     </form>
