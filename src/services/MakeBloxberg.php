@@ -32,9 +32,9 @@ class MakeBloxberg extends AbstractMake
      */
     private const PUB_KEY = '0xc4d84f32cd6fd05e2e292c171f5209a678525002';
 
-    private const CERT_URL = 'https://certify.bloxberg.org/createBloxbergCertificate';
+    private const CERT_URL = 'http://127.0.0.1/createBloxbergCertificate';
 
-    private const PROOF_URL = 'https://certify.bloxberg.org/generatePDF';
+    private const PROOF_URL = 'http://127.0.0.1/generatePDF';
 
     /** @var AbstractEntity $Entity */
     protected $Entity;
